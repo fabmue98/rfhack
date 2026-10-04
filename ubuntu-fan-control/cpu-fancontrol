@@ -1,0 +1,955 @@
+#!/usr/bin/env python3
+"""
+cpu-fancontrol – temperaturgeführte CPU-Lüftersteuerung für Ubuntu/Linux.
+
+Liest die CPU-Temperatur über hwmon (coretemp bei Intel, k10temp bei AMD) und
+regelt einen oder mehrere PWM-Lüfterausgänge des Mainboards (z.B. nct6775,
+it87) anhand einer frei einstellbaren Kennlinie. Benötigt nur Python 3 (ab 3.8)
+ohne zusätzliche Pakete.
+
+Befehle:
+  list      Temperatursensoren, Lüfter und PWM-Ausgänge anzeigen
+  test      PWM-Ausgang durchfahren, um den zugehörigen Lüfter zu finden
+  check     Konfiguration prüfen und aktuelle Werte anzeigen
+  run       Lüftersteuerung starten (wird vom systemd-Dienst aufgerufen)
+  restore   Lüfter nach einem Absturz wieder an das Mainboard übergeben
+"""
+
+import argparse
+import configparser
+import fcntl
+import json
+import logging
+import os
+import re
+import signal
+import sys
+import threading
+import time
+from collections import deque
+from pathlib import Path
+from types import SimpleNamespace
+
+VERSION = "1.0.0"
+DEFAULT_CONFIG = "/etc/cpu-fancontrol.conf"
+DEFAULT_STATE_FILE = "/run/cpu-fancontrol.state"
+# Für Tests lässt sich ein nachgebildeter sysfs-Baum unterschieben.
+HWMON_ROOT = os.environ.get("CPU_FANCONTROL_HWMON_ROOT", "/sys/class/hwmon")
+
+PWM_MAX = 255
+CPU_CHIPS = ("coretemp", "k10temp", "zenpower", "cpu_thermal")
+TEMP_PLAUSIBLE = (-20.0, 150.0)  # Werte außerhalb gelten als Sensorfehler
+STALL_CYCLES = 3                 # Messungen mit 0 U/min, bevor gewarnt wird
+LOG_STEP = 10                    # Drehzahländerungen ab so vielen % ins Log schreiben
+DEVICE_WAIT = 30                 # Sekunden, die beim Start auf Treiber gewartet wird
+TEST_STEPS = (100, 75, 50, 40, 30, 20, 10, 0)
+
+GENERAL_DEFAULTS = {"interval": "2", "on_exit": "restore"}
+FAN_DEFAULTS = {
+    "pwm": "",
+    "sensors": "",
+    "fan": "",
+    "curve": "40:25, 55:40, 70:70, 80:100",
+    "min_pwm": "20",
+    "start_pwm": "40",
+    "hysteresis": "3",
+    "ramp_down_step": "5",
+    "average": "3",
+    "critical_temp": "85",
+}
+EXAMPLES = {"temp": "coretemp/temp1", "fan": "nct6798/fan2", "pwm": "nct6798/pwm2"}
+
+DRIVER_HINT = """\
+Vermutlich ist der Treiber für den Lüfter-Chip des Mainboards nicht geladen:
+  sudo apt install lm-sensors
+  sudo sensors-detect          (Fragen mit ENTER bestätigen)
+  sudo modprobe <treiber>      (z.B. nct6775 oder it87, steht am Ende von sensors-detect)
+Details: README.md, Abschnitt "Sensor-Treiber laden"."""
+
+log = logging.getLogger("cpu-fancontrol")
+
+
+class FanControlError(Exception):
+    """Fehler, der ohne Traceback an den Benutzer gemeldet wird."""
+
+
+class DeviceNotFound(FanControlError):
+    """Ein konfigurierter Sensor oder PWM-Ausgang existiert (noch) nicht."""
+
+
+# ---------------------------------------------------------------------------
+# sysfs-Zugriff
+# ---------------------------------------------------------------------------
+
+def read_value(path):
+    with open(path) as f:
+        return f.read().strip()
+
+
+def write_value(path, value):
+    with open(path, "w") as f:
+        f.write(str(value))
+
+
+def read_number(path, divisor=1):
+    """Liest einen Zahlenwert, liefert None bei Fehlern."""
+    try:
+        return int(read_value(path)) / divisor
+    except (OSError, ValueError):
+        return None
+
+
+def percent_to_raw(percent):
+    return int(round(max(0.0, min(100.0, percent)) * PWM_MAX / 100))
+
+
+def raw_to_percent(raw):
+    return raw * 100.0 / PWM_MAX
+
+
+def natural_key(text):
+    return [int(part) if part.isdigit() else part for part in re.split(r"(\d+)", text)]
+
+
+class Chip:
+    """Ein hwmon-Gerät, z.B. /sys/class/hwmon/hwmon2 (coretemp)."""
+
+    PATTERNS = {"temp": r"temp(\d+)_input", "fan": r"fan(\d+)_input", "pwm": r"pwm(\d+)"}
+
+    def __init__(self, hwmon_dir, attr_dir):
+        self.hwmon = hwmon_dir.name
+        self.path = attr_dir
+        self.name = read_value(attr_dir / "name")
+        device = hwmon_dir / "device"
+        self.device = os.path.basename(os.path.realpath(device)) if device.exists() else ""
+        self.ident = self.name  # eindeutiger Bezeichner, siehe discover_chips()
+
+    def numbers(self, kind):
+        """Nummern der vorhandenen Attribute, z.B. numbers("temp") -> [1, 2, 3]."""
+        pattern = re.compile(self.PATTERNS[kind])
+        found = []
+        for entry in self.path.iterdir():
+            match = pattern.fullmatch(entry.name)
+            if match:
+                found.append(int(match.group(1)))
+        return sorted(found)
+
+    def attr_path(self, kind, num):
+        return self.path / (f"pwm{num}" if kind == "pwm" else f"{kind}{num}_input")
+
+    def label(self, kind, num):
+        try:
+            return read_value(self.path / f"{kind}{num}_label")
+        except OSError:
+            return ""
+
+
+def discover_chips(root=None):
+    """Findet alle hwmon-Geräte. Die hwmonN-Nummern können sich bei jedem
+    Booten ändern, deshalb werden Geräte über ihren Namen angesprochen."""
+    root = Path(root or HWMON_ROOT)
+    chips = []
+    if not root.is_dir():
+        return chips
+    for hwmon_dir in sorted(root.iterdir(), key=lambda p: natural_key(p.name)):
+        if not hwmon_dir.name.startswith("hwmon"):
+            continue
+        # Ältere Treiber legen ihre Dateien unter device/ ab.
+        for attr_dir in (hwmon_dir, hwmon_dir / "device"):
+            if (attr_dir / "name").is_file():
+                try:
+                    chips.append(Chip(hwmon_dir, attr_dir))
+                except OSError:
+                    pass
+                break
+    # Gibt es einen Namen mehrfach (z.B. coretemp bei zwei CPUs), wird
+    # stattdessen die Geräte-ID verwendet (z.B. coretemp.0 und coretemp.1).
+    names = [chip.name for chip in chips]
+    for chip in chips:
+        if names.count(chip.name) > 1:
+            chip.ident = chip.device or chip.hwmon
+    return chips
+
+
+def find_chip(chips, spec):
+    for key in ("name", "device", "hwmon"):
+        matches = [chip for chip in chips if getattr(chip, key) == spec]
+        if len(matches) == 1:
+            return matches[0]
+        if len(matches) > 1:
+            choices = ", ".join(chip.ident for chip in matches)
+            raise FanControlError(f"Chip '{spec}' ist mehrdeutig – bitte eine dieser Geräte-IDs verwenden: {choices}")
+    known = ", ".join(chip.ident for chip in chips) or "keine"
+    raise DeviceNotFound(f"Chip '{spec}' nicht gefunden (vorhanden: {known}) – siehe 'cpu-fancontrol list'")
+
+
+def resolve(chips, spec, kind):
+    """Löst '<chip>/<kind>N' oder '<chip>/<Label>' auf und liefert (Name, Pfad)."""
+    chip_spec, _, attr = spec.partition("/")
+    chip_spec, attr = chip_spec.strip(), attr.strip()
+    if not chip_spec or not attr:
+        raise FanControlError(f"Ungültige Angabe '{spec}' – erwartet '<chip>/{kind}N', z.B. '{EXAMPLES[kind]}'")
+    chip = find_chip(chips, chip_spec)
+    suffix = "" if kind == "pwm" else "(?:_input)?"
+    match = re.fullmatch(rf"{kind}(\d+){suffix}", attr)
+    if match:
+        num = int(match.group(1))
+    else:
+        labels = {chip.label(kind, n).lower(): n for n in chip.numbers(kind)}
+        num = labels.get(attr.lower())
+    if num is None or not chip.attr_path(kind, num).is_file():
+        available = ", ".join(f"{kind}{n}" for n in chip.numbers(kind)) or "keine"
+        raise DeviceNotFound(f"'{spec}' nicht gefunden (bei {chip.ident} vorhanden: {available})")
+    return f"{chip.ident}/{kind}{num}", chip.attr_path(kind, num)
+
+
+def auto_cpu_sensors(chips):
+    """Sucht die CPU-Temperatur: Package-Temperatur (Intel) bzw. Tctl (AMD)."""
+    sensors = []
+    for chip in chips:
+        if chip.name not in CPU_CHIPS:
+            continue
+        nums = chip.numbers("temp")
+        labels = {n: chip.label("temp", n).lower() for n in nums}
+        if chip.name == "coretemp":
+            chosen = [n for n in nums if labels[n].startswith("package")]
+        elif chip.name in ("k10temp", "zenpower"):
+            chosen = [n for n in nums if labels[n] == "tctl"] or [n for n in nums if labels[n] == "tdie"]
+        else:
+            chosen = []
+        for num in chosen or nums[:1]:
+            sensors.append(Sensor(f"{chip.ident}/temp{num}", chip.attr_path("temp", num), 1000, TEMP_PLAUSIBLE))
+    if not sensors:
+        raise DeviceNotFound("Kein CPU-Temperatursensor gefunden (coretemp/k10temp) – Treiber geladen? "
+                             "Alternativ den Sensor unter 'sensors' direkt angeben")
+    return sensors
+
+
+class Sensor:
+    """Ein Temperatur- (°C) oder Drehzahlsensor (U/min)."""
+
+    def __init__(self, name, path, divisor=1, plausible=None):
+        self.name = name
+        self.path = Path(path)
+        self.divisor = divisor
+        self.plausible = plausible
+
+    def read(self):
+        value = int(read_value(self.path)) / self.divisor
+        if self.plausible and not self.plausible[0] <= value <= self.plausible[1]:
+            raise ValueError(f"unplausibler Wert {value:g}")
+        return value
+
+
+class PwmOutput:
+    """Ein PWM-Lüfterausgang (pwmN) samt Betriebsart (pwmN_enable)."""
+
+    def __init__(self, name, path):
+        self.name = name
+        self.path = Path(path)
+        self.enable_path = self.path.with_name(self.path.name + "_enable")
+
+    def read(self):
+        return int(read_value(self.path))
+
+    def read_enable(self):
+        """0 = volle Drehzahl, 1 = manuell, ab 2 = automatisch, None = nicht umschaltbar."""
+        if not self.enable_path.exists():
+            return None
+        return int(read_value(self.enable_path))
+
+    def set_enable(self, mode):
+        write_value(self.enable_path, mode)
+
+    def set_manual(self):
+        """Schaltet auf manuelle Steuerung und liefert die vorherige Betriebsart."""
+        mode = self.read_enable()
+        if mode not in (None, 1):
+            self.set_enable(1)
+        return mode
+
+    def write_percent(self, percent):
+        write_value(self.path, percent_to_raw(percent))
+
+
+# ---------------------------------------------------------------------------
+# Konfiguration
+# ---------------------------------------------------------------------------
+
+def parse_number(section, key, defaults, where, minimum, maximum):
+    raw = str(section.get(key, defaults[key])).strip()
+    try:
+        value = float(raw)
+    except ValueError:
+        raise FanControlError(f"{where} {key}: '{raw}' ist keine Zahl")
+    if not minimum <= value <= maximum:
+        raise FanControlError(f"{where} {key}: {raw} liegt nicht zwischen {minimum:g} und {maximum:g}")
+    return value
+
+
+def parse_curve(text, where):
+    """'40:25, 55:40, 80:100' -> [(40.0, 25.0), (55.0, 40.0), (80.0, 100.0)]"""
+    points = []
+    for part in text.split(","):
+        cleaned = re.sub(r"[\s°%Cc]", "", part)
+        if not cleaned:
+            continue
+        temp, sep, pwm = cleaned.partition(":")
+        try:
+            if not sep:
+                raise ValueError
+            points.append((float(temp), float(pwm)))
+        except ValueError:
+            raise FanControlError(f"{where} curve: '{part.strip()}' ist kein Punkt der Form Temperatur:Prozent (z.B. 50:40)")
+    if not points:
+        raise FanControlError(f"{where} curve: keine Punkte angegeben")
+    for _, pwm in points:
+        if not 0 <= pwm <= 100:
+            raise FanControlError(f"{where} curve: Drehzahl {pwm:g} % liegt nicht zwischen 0 und 100")
+    for (t0, p0), (t1, p1) in zip(points, points[1:]):
+        if t1 <= t0:
+            raise FanControlError(f"{where} curve: Temperaturen müssen aufsteigend sein ({t0:g} → {t1:g})")
+        if p1 < p0:
+            raise FanControlError(f"{where} curve: Drehzahl darf mit steigender Temperatur nicht sinken ({p0:g} % → {p1:g} %)")
+    return points
+
+
+def interpolate(curve, temp):
+    """Drehzahl in % für eine Temperatur, linear zwischen den Kennlinienpunkten."""
+    if temp <= curve[0][0]:
+        return curve[0][1]
+    for (t0, p0), (t1, p1) in zip(curve, curve[1:]):
+        if temp <= t1:
+            return p0 + (p1 - p0) * (temp - t0) / (t1 - t0)
+    return curve[-1][1]
+
+
+def check_keys(section, allowed, where):
+    unknown = sorted(set(section) - set(allowed))
+    if unknown:
+        raise FanControlError(f"{where}: unbekannte Option(en): {', '.join(unknown)}")
+
+
+def parse_fan(name, section):
+    where = f"[fan:{name}]"
+    check_keys(section, FAN_DEFAULTS, where)
+    for key in ("pwm", "sensors"):
+        if not section.get(key, "").strip():
+            raise FanControlError(f"{where}: Option '{key}' fehlt")
+
+    def number(key, minimum, maximum):
+        return parse_number(section, key, FAN_DEFAULTS, where, minimum, maximum)
+
+    return SimpleNamespace(
+        name=name,
+        pwm=section["pwm"].strip(),
+        sensors=[s.strip() for s in section["sensors"].split(",") if s.strip()],
+        fan=section.get("fan", "").strip(),
+        curve=parse_curve(section.get("curve", FAN_DEFAULTS["curve"]), where),
+        min_pwm=number("min_pwm", 0, 100),
+        start_pwm=number("start_pwm", 0, 100),
+        hysteresis=number("hysteresis", 0, 20),
+        ramp_down_step=number("ramp_down_step", 1, 100),
+        average=int(number("average", 1, 30)),
+        critical_temp=number("critical_temp", 40, 120),
+    )
+
+
+def load_config(path):
+    parser = configparser.ConfigParser(inline_comment_prefixes=("#",), interpolation=None)
+    try:
+        with open(path, encoding="utf-8") as f:
+            parser.read_file(f)
+    except FileNotFoundError:
+        raise FanControlError(f"Konfigurationsdatei {path} nicht gefunden")
+    except (configparser.Error, UnicodeDecodeError) as exc:
+        raise FanControlError(f"Fehler in {path}: {exc}")
+
+    general = parser["general"] if parser.has_section("general") else {}
+    check_keys(general, GENERAL_DEFAULTS, "[general]")
+    on_exit = general.get("on_exit", GENERAL_DEFAULTS["on_exit"]).strip().lower()
+    if on_exit not in ("restore", "full"):
+        raise FanControlError(f"[general] on_exit: '{on_exit}' ist ungültig (erlaubt: restore, full)")
+    config = SimpleNamespace(
+        interval=parse_number(general, "interval", GENERAL_DEFAULTS, "[general]", 0.5, 60),
+        on_exit=on_exit,
+        fans=[],
+    )
+    for section in parser.sections():
+        if section == "general":
+            continue
+        name = section[4:].strip() if section.startswith("fan:") else ""
+        if not name:
+            raise FanControlError(f"Unbekannter Abschnitt [{section}] – erlaubt sind [general] und [fan:<name>]")
+        config.fans.append(parse_fan(name, parser[section]))
+    if not config.fans:
+        raise FanControlError(f"{path}: kein Lüfter konfiguriert (Abschnitt [fan:<name>] fehlt)")
+    return config
+
+
+# ---------------------------------------------------------------------------
+# Regelung
+# ---------------------------------------------------------------------------
+
+class FanController:
+    """Regelt einen PWM-Ausgang anhand von Temperatur und Kennlinie."""
+
+    def __init__(self, cfg, output, sensors, fan_sensor=None):
+        self.cfg = cfg
+        self.name = cfg.name
+        self.output = output
+        self.sensors = sensors
+        self.fan_sensor = fan_sensor
+        self.history = deque(maxlen=cfg.average)
+        self.level = None          # Wert auf der Kennlinie (vor min_pwm/start_pwm)
+        self.last_output = None    # zuletzt ausgegebene Drehzahl in %
+        self.logged_output = None
+        self.temp = None
+        self.rpm = None
+        self.sensor_failed = False
+        self.critical = False
+        self.stall_count = 0
+
+    def describe(self):
+        return f"[{self.name}] {self.output.name} nach {', '.join(s.name for s in self.sensors)}"
+
+    def compute(self):
+        """Berechnet die neue Drehzahl in Prozent."""
+        cfg = self.cfg
+        try:
+            temp = max(sensor.read() for sensor in self.sensors)
+        except (OSError, ValueError) as exc:
+            if not self.sensor_failed:
+                log.error("[%s] Temperatur nicht lesbar (%s) – Lüfter auf 100 %%", self.name, exc)
+                self.sensor_failed = True
+            self.temp = None
+            self.history.clear()
+            self.level = 100.0
+            return 100.0
+        if self.sensor_failed:
+            log.info("[%s] Temperatursensor wieder lesbar", self.name)
+            self.sensor_failed = False
+        self.temp = temp
+        self.history.append(temp)
+
+        # Kritische Temperatur: sofort volle Drehzahl, ohne Mittelwertbildung
+        if temp >= cfg.critical_temp and not self.critical:
+            log.warning("[%s] Kritische Temperatur %.1f °C – Lüfter auf 100 %%", self.name, temp)
+            self.critical = True
+        elif self.critical and temp < cfg.critical_temp - cfg.hysteresis:
+            log.info("[%s] Temperatur wieder unter %.0f °C", self.name, cfg.critical_temp - cfg.hysteresis)
+            self.critical = False
+        if self.critical:
+            self.level = 100.0
+            return 100.0
+
+        average = sum(self.history) / len(self.history)
+        rising = interpolate(cfg.curve, average)
+        falling = interpolate(cfg.curve, average + cfg.hysteresis)
+        if self.level is None or rising > self.level:
+            # Hochregeln sofort
+            self.level = rising
+        elif falling < self.level:
+            # Runterregeln erst nach Ablauf der Hysterese und gebremst
+            self.level = max(falling, self.level - cfg.ramp_down_step)
+        return self.limit(self.level)
+
+    def limit(self, level):
+        """Wendet Mindest- und Anlaufdrehzahl an."""
+        if level <= 0:
+            return 0.0
+        percent = max(level, self.cfg.min_pwm)
+        if self.last_output == 0:
+            # Lüfter steht: mit Anlaufdrehzahl anschieben
+            percent = max(percent, self.cfg.start_pwm)
+        return min(percent, 100.0)
+
+    def step(self, dry_run=False):
+        percent = self.compute()
+        if not dry_run:
+            mode = self.output.set_manual()
+            if mode not in (None, 1):
+                log.warning("[%s] Betriebsart von %s wurde extern auf %s gestellt – übernehme wieder",
+                            self.name, self.output.name, mode)
+            self.output.write_percent(percent)
+        self.check_fan(percent, dry_run)
+        self.last_output = percent
+        self.log_change(percent)
+        return percent
+
+    def check_fan(self, percent, dry_run):
+        if self.fan_sensor is None:
+            return
+        try:
+            self.rpm = int(self.fan_sensor.read())
+        except (OSError, ValueError):
+            self.rpm = None
+            return
+        if not dry_run and percent > 0 and self.last_output and self.rpm == 0:
+            self.stall_count += 1
+            if self.stall_count == STALL_CYCLES:
+                log.warning("[%s] %s meldet 0 U/min bei %.0f %% – steht der Lüfter? "
+                            "(min_pwm zu niedrig oder Lüfter blockiert/defekt)",
+                            self.name, self.fan_sensor.name, percent)
+        else:
+            if self.stall_count >= STALL_CYCLES and self.rpm:
+                log.info("[%s] Lüfter dreht wieder (%d U/min)", self.name, self.rpm)
+            self.stall_count = 0
+
+    def log_change(self, percent):
+        last = self.logged_output
+        temp = "Temperatur unbekannt" if self.temp is None else f"{self.temp:.1f} °C"
+        rpm = "" if self.rpm is None else f" ({self.rpm} U/min)"
+        changed = (last is None or abs(percent - last) >= LOG_STEP
+                   or (percent == 0) != (last == 0) or (percent == 100) != (last == 100))
+        log.log(logging.INFO if changed else logging.DEBUG, "[%s] %s → Lüfter %.0f %%%s", self.name, temp, percent, rpm)
+        if changed:
+            self.logged_output = percent
+
+
+def build_controllers(config, chips):
+    controllers, used = [], {}
+    for fan in config.fans:
+        pwm_name, pwm_path = resolve(chips, fan.pwm, "pwm")
+        if pwm_path in used:
+            raise FanControlError(f"{pwm_name} ist in [fan:{used[pwm_path]}] und [fan:{fan.name}] eingetragen")
+        used[pwm_path] = fan.name
+        sensors = []
+        for spec in fan.sensors:
+            if spec.lower() == "auto":
+                sensors.extend(auto_cpu_sensors(chips))
+            else:
+                sensors.append(Sensor(*resolve(chips, spec, "temp"), divisor=1000, plausible=TEMP_PLAUSIBLE))
+        fan_sensor = Sensor(*resolve(chips, fan.fan, "fan")) if fan.fan else None
+        controllers.append(FanController(fan, PwmOutput(pwm_name, pwm_path), sensors, fan_sensor))
+    return controllers
+
+
+def wait_for_devices(config, timeout):
+    """Beim Booten wird der Sensortreiber eventuell erst später geladen – kurz warten."""
+    deadline = time.monotonic() + timeout
+    warned = False
+    while True:
+        try:
+            return build_controllers(config, discover_chips())
+        except DeviceNotFound as exc:
+            if time.monotonic() >= deadline:
+                raise
+            if not warned:
+                log.warning("%s – warte bis zu %d s auf den Treiber", exc, timeout)
+                warned = True
+            time.sleep(2)
+
+
+# ---------------------------------------------------------------------------
+# Übernahme und Rückgabe der Lüfter
+#
+# Vor dem Umschalten auf manuelle Steuerung wird der ursprüngliche Zustand in
+# einer Statusdatei unter /run gesichert. Beim Beenden – oder nach einem
+# Absturz per "cpu-fancontrol restore" (ExecStopPost im systemd-Dienst) – wird
+# daraus die Steuerung an das Mainboard zurückgegeben.
+# ---------------------------------------------------------------------------
+
+def acquire_lock(state_file):
+    """Verhindert, dass zwei Instanzen gleichzeitig dieselben Lüfter steuern.
+    Die Sperre bleibt bis zum Prozessende bestehen."""
+    fd = os.open(f"{state_file}.lock", os.O_RDWR | os.O_CREAT, 0o644)
+    try:
+        fcntl.flock(fd, fcntl.LOCK_EX | fcntl.LOCK_NB)
+    except BlockingIOError:
+        os.close(fd)
+        raise FanControlError("cpu-fancontrol steuert die Lüfter bereits (Dienst aktiv?) – "
+                              "erst beenden: sudo systemctl stop cpu-fancontrol")
+    return fd
+
+
+def load_state(path):
+    try:
+        with open(path) as f:
+            return json.load(f)
+    except FileNotFoundError:
+        return None
+    except (OSError, ValueError) as exc:
+        log.error("Statusdatei %s nicht lesbar: %s", path, exc)
+        return None
+
+
+def save_state(path, state):
+    tmp = f"{path}.tmp"
+    with open(tmp, "w") as f:
+        json.dump(state, f, indent=2)
+    os.replace(tmp, path)
+
+
+def restore_outputs(state):
+    """Gibt die Lüfter an das Mainboard zurück bzw. setzt sie auf 100 %."""
+    ok = True
+    on_exit = state.get("on_exit", "restore")
+    for path, original in state.get("outputs", {}).items():
+        output = PwmOutput(original.get("name", path), path)
+        enable = original.get("enable")
+        try:
+            if on_exit == "restore" and enable not in (None, 1):
+                output.set_enable(enable)
+                log.info("%s: Steuerung an das Mainboard zurückgegeben (pwm_enable=%s)", output.name, enable)
+            else:
+                # Gewünscht oder vorher schon manuell gesteuert: sicherheitshalber volle Drehzahl
+                output.set_manual()
+                output.write_percent(100)
+                log.info("%s: Lüfter auf 100 %% gesetzt", output.name)
+        except OSError as exc:
+            log.error("%s: Zurücksetzen fehlgeschlagen: %s", output.name, exc)
+            ok = False
+    return ok
+
+
+def take_control(controllers, on_exit, state_file):
+    previous = load_state(state_file) or {}
+    leftovers = dict(previous.get("outputs", {}))
+    if leftovers:
+        log.warning("Vorherige Instanz wurde nicht sauber beendet – übernehme deren gesicherten Ausgangszustand")
+    outputs = {}
+    for controller in controllers:
+        output = controller.output
+        outputs[str(output.path)] = leftovers.pop(str(output.path), None) or {
+            "name": output.name, "pwm": output.read(), "enable": output.read_enable()}
+    if leftovers:
+        # Ausgänge, die laut neuer Konfiguration nicht mehr geregelt werden
+        restore_outputs({"on_exit": previous.get("on_exit", on_exit), "outputs": leftovers})
+    save_state(state_file, {"on_exit": on_exit, "outputs": outputs})
+    for controller in controllers:
+        controller.last_output = raw_to_percent(controller.output.read())
+        controller.output.set_manual()
+
+
+def release_control(state_file):
+    """Liefert None, wenn nichts zurückzugeben war, sonst ob alles geklappt hat."""
+    state = load_state(state_file)
+    if state is None:
+        return None
+    ok = restore_outputs(state)
+    try:
+        os.remove(state_file)
+    except FileNotFoundError:
+        pass
+    return ok
+
+
+# ---------------------------------------------------------------------------
+# Befehle
+# ---------------------------------------------------------------------------
+
+def fmt_temp(value):
+    return "–" if value is None else f"{value:.1f} °C"
+
+
+def fmt_rpm(value):
+    return "–" if value is None else f"{int(value)} U/min"
+
+
+def fmt_pwm(raw):
+    return "–" if raw is None else f"{int(raw)} ({raw_to_percent(raw):.0f} %)"
+
+
+def mode_text(mode):
+    if mode is None:
+        return "–"
+    return {0: "0 (volle Drehzahl)", 1: "1 (manuell)"}.get(mode, f"{mode} (automatisch)")
+
+
+def safe_mode(output):
+    try:
+        return output.read_enable()
+    except (OSError, ValueError):
+        return None
+
+
+def cmd_list(args):
+    chips = discover_chips()
+    if not chips:
+        print("Keine hwmon-Geräte gefunden.\n")
+        print(DRIVER_HINT)
+        return 1
+    pwm_count = 0
+    for chip in chips:
+        device = f", Gerät {chip.device}" if chip.device and chip.device != chip.ident else ""
+        print(f"{chip.ident}  ({chip.hwmon}{device})")
+        rows = []
+        for num in chip.numbers("temp"):
+            rows.append((f"temp{num}", fmt_temp(read_number(chip.attr_path("temp", num), 1000)), chip.label("temp", num)))
+        for num in chip.numbers("fan"):
+            rows.append((f"fan{num}", fmt_rpm(read_number(chip.attr_path("fan", num))), chip.label("fan", num)))
+        for num in chip.numbers("pwm"):
+            output = PwmOutput("", chip.attr_path("pwm", num))
+            rows.append((f"pwm{num}", fmt_pwm(read_number(output.path)), f"Betriebsart {mode_text(safe_mode(output))}"))
+            pwm_count += 1
+        for attr, value, info in rows:
+            print(f"  {chip.ident + '/' + attr:<28} {value:>14}  {info}")
+        print()
+    if pwm_count:
+        print("CPU-Lüfter finden:  sudo cpu-fancontrol test <chip>/pwmN")
+    else:
+        print("Es wurden keine PWM-Ausgänge gefunden.\n")
+        print(DRIVER_HINT)
+    return 0
+
+
+def cmd_check(args):
+    config = load_config(args.config)
+    controllers = build_controllers(config, discover_chips())
+    print(f"Konfiguration {args.config} ist gültig "
+          f"(Intervall {config.interval:g} s, beim Beenden: {config.on_exit}).")
+    for controller in controllers:
+        cfg, output = controller.cfg, controller.output
+        print(f"\n[fan:{controller.name}]")
+        for sensor in controller.sensors:
+            print(f"  Sensor     {sensor.name:<24} {fmt_temp(read_number(sensor.path, 1000))}")
+        print(f"  PWM        {output.name:<24} {fmt_pwm(read_number(output.path))}, "
+              f"Betriebsart {mode_text(safe_mode(output))}")
+        if not os.access(output.path, os.W_OK):
+            print("             (kein Schreibzugriff – der Dienst muss als root laufen)")
+        if controller.fan_sensor:
+            print(f"  Drehzahl   {controller.fan_sensor.name:<24} {fmt_rpm(read_number(controller.fan_sensor.path))}")
+        print("  Kennlinie  " + ", ".join(f"{t:g} °C → {p:g} %" for t, p in cfg.curve))
+        print(f"  Grenzen    min {cfg.min_pwm:g} %, Anlauf {cfg.start_pwm:g} %, "
+              f"Hysterese {cfg.hysteresis:g} °C, kritisch ab {cfg.critical_temp:g} °C")
+        print(f"  Sollwert   {controller.compute():.0f} % bei der aktuellen Temperatur")
+    return 0
+
+
+def cmd_run(args):
+    config = load_config(args.config)
+    if not args.dry_run:
+        acquire_lock(args.state_file)
+    controllers = wait_for_devices(config, 0 if args.dry_run else DEVICE_WAIT)
+
+    stop = threading.Event()
+    received = []
+
+    def on_signal(signum, _frame):
+        received.append(signum)
+        stop.set()
+
+    signals = (signal.SIGTERM, signal.SIGINT, signal.SIGHUP)
+    for sig in signals:
+        signal.signal(sig, on_signal)
+    try:
+        if not args.dry_run:
+            take_control(controllers, config.on_exit, args.state_file)
+        log.info("cpu-fancontrol %s gestartet%s – %s", VERSION,
+                 " (Testlauf, es wird nichts geschrieben)" if args.dry_run else "",
+                 "; ".join(c.describe() for c in controllers))
+        while not stop.is_set():
+            for controller in controllers:
+                controller.step(args.dry_run)
+            stop.wait(config.interval)
+    finally:
+        for sig in signals:
+            signal.signal(sig, signal.SIG_IGN)
+        if not args.dry_run:
+            release_control(args.state_file)
+    if received:
+        log.info("Beendet (%s)", signal.Signals(received[0]).name)
+    return 0
+
+
+def cmd_restore(args):
+    acquire_lock(args.state_file)
+    result = release_control(args.state_file)
+    if result is None:
+        log.info("Nichts zurückzusetzen – es sind keine Lüfter übernommen")
+        return 0
+    return 0 if result else 1
+
+
+def cmd_test(args):
+    chips = discover_chips()
+    name, path = resolve(chips, args.pwm, "pwm")
+    output = PwmOutput(name, path)
+    acquire_lock(args.state_file)
+    fans = [(f"{c.ident}/fan{n}", c.attr_path("fan", n)) for c in chips for n in c.numbers("fan")]
+    cpu_temps = [c.attr_path("temp", n) for c in chips if c.name in CPU_CHIPS for n in c.numbers("temp")]
+
+    def cpu_temp():
+        values = [v for v in (read_number(p, 1000) for p in cpu_temps) if v is not None]
+        return max(values) if values else None
+
+    def measure(percent):
+        output.set_manual()
+        output.write_percent(percent)
+        for _ in range(args.delay):
+            time.sleep(1)
+            temp = cpu_temp()
+            if temp is not None and temp >= args.max_temp:
+                raise FanControlError(f"Abbruch: CPU-Temperatur {temp:.1f} °C hat --max-temp {args.max_temp:g} °C erreicht")
+        return {fan: read_number(fan_path) for fan, fan_path in fans}
+
+    def show(percent, rpms, columns):
+        cells = "".join(f"{fmt_rpm(rpms[fan]):>16}" for fan in columns)
+        temp = cpu_temp()
+        print(f"{percent:>5} %{cells}   {fmt_temp(temp) if temp is not None else ''}", flush=True)
+
+    original_pwm, original_mode = output.read(), output.read_enable()
+    print(f"Teste {name}: die Drehzahl wird stufenweise von 100 % auf 0 % gesenkt ({args.delay} s je Stufe).")
+    print("Abbruch mit Strg+C – der ursprüngliche Zustand wird danach wiederhergestellt.\n")
+    down, up, columns, done = [], [], None, False
+    try:
+        for percent in TEST_STEPS:
+            rpms = measure(percent)
+            if columns is None:
+                # Nur Lüfter anzeigen, die überhaupt drehen
+                columns = [fan for fan, _ in fans if rpms[fan]] or [fan for fan, _ in fans]
+                print("  PWM " + "".join(f"{fan:>16}" for fan in columns) + "   CPU")
+            down.append((percent, rpms))
+            show(percent, rpms, columns)
+        stopped = [fan for fan in columns if down[0][1][fan] and not down[-1][1][fan]]
+        if stopped:
+            print("\nAnlauftest – ab welcher Drehzahl startet der Lüfter aus dem Stillstand?")
+            for percent in range(10, 101, 10):
+                rpms = measure(percent)
+                up.append((percent, rpms))
+                show(percent, rpms, columns)
+                if all(rpms[fan] for fan in stopped):
+                    break
+        done = True
+    except KeyboardInterrupt:
+        print("\nAbgebrochen.")
+    finally:
+        if original_mode not in (None, 1):
+            output.set_enable(original_mode)
+        else:
+            write_value(output.path, original_pwm)
+        print("Ursprünglicher Zustand wiederhergestellt.")
+    if not done:
+        return 130
+    print_test_summary(name, down, up, columns)
+    return 0
+
+
+def print_test_summary(name, down, up, columns):
+    print()
+    if not columns:
+        print("Keine Drehzahlsensoren vorhanden – ob sich der CPU-Lüfter verändert hat, "
+              "lässt sich nur durch Hinsehen oder Hinhören feststellen.")
+        return
+    full, lowest = down[0][1], down[-1][1]
+    controlled = [fan for fan in columns
+                  if full[fan] and lowest[fan] is not None and lowest[fan] < 0.7 * full[fan]]
+    if not controlled:
+        print(f"Kein Lüfter hat auf {name} reagiert – bitte einen anderen PWM-Ausgang testen. "
+              "Hängt der Lüfter am Mainboard und ist es ein 4-Pin-PWM-Lüfter?")
+        return
+    min_pwm = start_pwm = 0
+    for fan in controlled:
+        if lowest[fan]:
+            print(f"→ {name} steuert {fan}: {full[fan]:.0f} U/min bei 100 %, "
+                  f"bei 0 % noch {lowest[fan]:.0f} U/min (der Lüfter bleibt nicht stehen)")
+            continue
+        lowest_running = min(percent for percent, rpms in down if rpms[fan])
+        start = next((percent for percent, rpms in up if rpms[fan]), None)
+        print(f"→ {name} steuert {fan}: {full[fan]:.0f} U/min bei 100 %, läuft bis {lowest_running} %, "
+              f"darunter bleibt er stehen" + (f"; startet ab {start} % wieder" if start else ""))
+        min_pwm = max(min_pwm, lowest_running + 10)
+        start_pwm = max(start_pwm, (start or lowest_running) + 10)
+    print("\nVorschlag für /etc/cpu-fancontrol.conf:")
+    print(f"  pwm = {name}")
+    print(f"  fan = {controlled[0]}")
+    if min_pwm:
+        print(f"  min_pwm = {min(min_pwm, 100)}")
+        print(f"  start_pwm = {min(max(start_pwm, min_pwm), 100)}")
+
+
+# ---------------------------------------------------------------------------
+# Programmstart
+# ---------------------------------------------------------------------------
+
+class LogFormatter(logging.Formatter):
+    """Unter systemd mit Syslog-Priorität für journald, sonst lesbar fürs Terminal."""
+
+    PRIORITIES = {logging.DEBUG: 7, logging.INFO: 6, logging.WARNING: 4, logging.ERROR: 3, logging.CRITICAL: 2}
+    LEVELS = {logging.DEBUG: "Debug: ", logging.WARNING: "Warnung: ", logging.ERROR: "Fehler: ",
+              logging.CRITICAL: "Kritisch: "}
+
+    def __init__(self, journal, timestamps):
+        super().__init__()
+        self.journal = journal
+        self.timestamps = timestamps
+
+    def format(self, record):
+        message = record.getMessage()
+        if self.journal:
+            return f"<{self.PRIORITIES.get(record.levelno, 6)}>{message}"
+        prefix = time.strftime("%H:%M:%S ") if self.timestamps else ""
+        return f"{prefix}{self.LEVELS.get(record.levelno, '')}{message}"
+
+
+def stderr_is_journal():
+    try:
+        dev, ino = (int(x) for x in os.environ.get("JOURNAL_STREAM", "").split(":"))
+        st = os.fstat(sys.stderr.fileno())
+    except (ValueError, OSError):
+        return False
+    return (st.st_dev, st.st_ino) == (dev, ino)
+
+
+def setup_logging(verbose, timestamps):
+    handler = logging.StreamHandler(sys.stderr)
+    handler.setFormatter(LogFormatter(stderr_is_journal(), timestamps))
+    log.addHandler(handler)
+    log.setLevel(logging.DEBUG if verbose else logging.INFO)
+
+
+def build_parser():
+    common = argparse.ArgumentParser(add_help=False)
+    common.add_argument("-c", "--config", default=DEFAULT_CONFIG,
+                        help=f"Konfigurationsdatei (Standard: {DEFAULT_CONFIG})")
+    common.add_argument("--state-file", default=DEFAULT_STATE_FILE, help=argparse.SUPPRESS)
+    common.add_argument("-v", "--verbose", action="store_true", help="ausführliche Ausgabe")
+
+    parser = argparse.ArgumentParser(prog="cpu-fancontrol",
+                                     description="Temperaturgeführte CPU-Lüftersteuerung über hwmon/PWM.")
+    parser.add_argument("--version", action="version", version=f"%(prog)s {VERSION}")
+    sub = parser.add_subparsers(dest="command", metavar="BEFEHL")
+    sub.required = True
+
+    p = sub.add_parser("list", parents=[common], help="Sensoren, Lüfter und PWM-Ausgänge anzeigen")
+    p.set_defaults(func=cmd_list)
+
+    p = sub.add_parser("test", parents=[common], help="PWM-Ausgang durchfahren, um den zugehörigen Lüfter zu finden")
+    p.add_argument("pwm", help="PWM-Ausgang, z.B. nct6798/pwm2")
+    p.add_argument("--delay", type=int, default=5, help="Sekunden je Stufe (Standard: 5)")
+    p.add_argument("--max-temp", type=float, default=80, help="Abbruch ab dieser CPU-Temperatur in °C (Standard: 80)")
+    p.set_defaults(func=cmd_test)
+
+    p = sub.add_parser("check", parents=[common], help="Konfiguration prüfen und aktuelle Werte anzeigen")
+    p.set_defaults(func=cmd_check)
+
+    p = sub.add_parser("run", parents=[common], help="Lüftersteuerung starten")
+    p.add_argument("--dry-run", action="store_true", help="nur berechnen und loggen, nichts schreiben")
+    p.set_defaults(func=cmd_run)
+
+    p = sub.add_parser("restore", parents=[common], help="Lüfter wieder an das Mainboard übergeben")
+    p.set_defaults(func=cmd_restore)
+    return parser
+
+
+def main(argv=None):
+    args = build_parser().parse_args(argv)
+    setup_logging(args.verbose, timestamps=args.command == "run")
+    try:
+        return args.func(args)
+    except FanControlError as exc:
+        log.error("%s", exc)
+        return 2
+    except PermissionError as exc:
+        log.error("Keine Berechtigung (%s) – bitte mit sudo ausführen", exc)
+        return 1
+    except OSError as exc:
+        log.error("%s", exc)
+        return 1
+    except KeyboardInterrupt:
+        return 130
+
+
+if __name__ == "__main__":
+    sys.exit(main())

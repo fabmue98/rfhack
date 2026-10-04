@@ -1,0 +1,24 @@
+[Unit]
+Description=CPU-Lüftersteuerung (cpu-fancontrol)
+# Sensortreiber (z.B. nct6775, it87) müssen vorher geladen sein
+After=systemd-modules-load.service lm-sensors.service
+
+[Service]
+Type=simple
+ExecStart=/usr/local/sbin/cpu-fancontrol run
+# Gibt die Lüfter auch nach einem Absturz wieder an das Mainboard zurück
+ExecStopPost=/usr/local/sbin/cpu-fancontrol restore
+Restart=on-failure
+RestartSec=5
+# Exit-Code 2 = Konfigurationsfehler: nicht endlos neu starten
+RestartPreventExitStatus=2
+
+# Härtung (Schreibzugriff auf /sys und /run wird weiterhin benötigt)
+NoNewPrivileges=yes
+ProtectSystem=full
+ProtectHome=yes
+PrivateTmp=yes
+PrivateNetwork=yes
+
+[Install]
+WantedBy=multi-user.target
