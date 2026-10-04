@@ -1,0 +1,951 @@
+<!doctype html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Lüftersteuerung</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Ccircle cx='16' cy='16' r='15' fill='%232a78d6'/%3E%3Cg fill='%23fff'%3E%3Cpath d='M16 14c-1-5 0-9 4-9s4 5-1 8z'/%3E%3Cpath d='M18 16c5-1 9 0 9 4s-5 4-8-1z'/%3E%3Cpath d='M16 18c1 5 0 9-4 9s-4-5 1-8z'/%3E%3Cpath d='M14 16c-5 1-9 0-9-4s5-4 8 1z'/%3E%3C/g%3E%3Ccircle cx='16' cy='16' r='2.5' fill='%23fff'/%3E%3C/svg%3E">
+<style>
+:root {
+  color-scheme: light;
+  --page: #f9f9f7;
+  --surface: #fcfcfb;
+  --surface-sunk: #f2f1ed;
+  --ink: #0b0b0b;
+  --ink-2: #52514e;
+  --muted: #898781;
+  --grid: #e1e0d9;
+  --axis: #c3c2b7;
+  --border: rgba(11, 11, 11, 0.10);
+  --fan: #2a78d6;
+  --temp: #eb6834;
+  --good: #0ca30c;
+  --good-text: #006300;
+  --serious: #ec835a;
+  --critical: #d03b3b;
+  --accent: #2a78d6;
+  --shadow: 0 4px 16px rgba(11, 11, 11, 0.10);
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    color-scheme: dark;
+    --page: #0d0d0d;
+    --surface: #1a1a19;
+    --surface-sunk: #232321;
+    --ink: #ffffff;
+    --ink-2: #c3c2b7;
+    --muted: #898781;
+    --grid: #2c2c2a;
+    --axis: #383835;
+    --border: rgba(255, 255, 255, 0.10);
+    --fan: #3987e5;
+    --temp: #d95926;
+    --good-text: #0ca30c;
+    --accent: #3987e5;
+    --shadow: 0 4px 16px rgba(0, 0, 0, 0.5);
+  }
+}
+* { box-sizing: border-box; }
+body {
+  margin: 0;
+  background: var(--page);
+  color: var(--ink);
+  font: 14px/1.45 system-ui, -apple-system, "Segoe UI", sans-serif;
+}
+.wrap { max-width: 1280px; margin: 0 auto; padding: 24px 16px 48px; }
+header.top { display: flex; align-items: flex-start; justify-content: space-between; gap: 16px; flex-wrap: wrap; }
+h1 { font-size: 22px; font-weight: 600; margin: 0; }
+.subtitle { color: var(--ink-2); margin: 2px 0 0; }
+.conn { display: inline-flex; align-items: center; gap: 8px; color: var(--ink-2); padding: 6px 10px;
+  border: 1px solid var(--border); border-radius: 999px; background: var(--surface); white-space: nowrap; }
+.conn .dot { width: 8px; height: 8px; border-radius: 50%; background: var(--muted); }
+.conn.ok .dot { background: var(--good); }
+.conn.error .dot { background: var(--critical); }
+.filters { display: flex; align-items: center; gap: 12px; margin: 20px 0 16px; flex-wrap: wrap; }
+.filters .label { color: var(--ink-2); }
+.seg { display: inline-flex; border: 1px solid var(--border); border-radius: 8px; background: var(--surface); padding: 2px; }
+.seg button { border: 0; background: none; color: var(--ink-2); font: inherit; padding: 4px 12px; border-radius: 6px; cursor: pointer; }
+.seg button:hover { background: var(--surface-sunk); }
+.seg button[aria-pressed="true"] { background: var(--surface-sunk); color: var(--ink); font-weight: 600; }
+.notice { margin: 0 0 16px; padding: 10px 14px; border-radius: 10px; border: 1px solid var(--border); background: var(--surface); color: var(--ink-2); }
+.notice[hidden] { display: none; }
+section.fan { margin-bottom: 32px; }
+.fan-head { display: flex; align-items: baseline; gap: 12px; flex-wrap: wrap; margin-bottom: 12px; }
+.fan-head h2 { font-size: 18px; font-weight: 600; margin: 0; }
+.badge { display: inline-flex; align-items: center; gap: 6px; padding: 2px 10px; border-radius: 999px;
+  border: 1px solid var(--border); background: var(--surface); font-size: 13px; }
+.badge .icon { font-size: 11px; }
+.fan-meta { color: var(--muted); font-size: 13px; }
+.grid { display: grid; grid-template-columns: minmax(0, 1.25fr) minmax(0, 1fr); gap: 16px; align-items: start; }
+@media (max-width: 960px) { .grid { grid-template-columns: minmax(0, 1fr); } }
+.col { display: grid; gap: 16px; min-width: 0; }
+.panel { background: var(--surface); border: 1px solid var(--border); border-radius: 12px; padding: 16px; min-width: 0; }
+.panel h3 { font-size: 14px; font-weight: 600; margin: 0 0 4px; }
+.panel h3 .unit { color: var(--muted); font-weight: 400; }
+.panel-head { display: flex; justify-content: space-between; align-items: baseline; gap: 12px; flex-wrap: wrap; }
+.hint { color: var(--muted); font-size: 12px; }
+.tiles { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 16px; }
+.tile { background: var(--surface); border: 1px solid var(--border); border-radius: 12px; padding: 14px 16px; min-width: 0; }
+.tile-label { color: var(--ink-2); font-size: 13px; }
+.tile-value { font-size: 30px; font-weight: 600; line-height: 1.2; margin-top: 2px; }
+.tile-value .unit { font-size: 16px; font-weight: 400; color: var(--ink-2); margin-left: 3px; }
+.tile-sub { color: var(--muted); font-size: 12px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+@media (max-width: 560px) {
+  /* Auf dem Handy: kompakte Zeilen, Wert rechts */
+  .tiles { grid-template-columns: minmax(0, 1fr); gap: 8px; }
+  .tile { display: grid; grid-template-columns: minmax(0, 1fr) auto; grid-template-areas: "label value" "sub value";
+    align-items: center; column-gap: 12px; padding: 10px 14px; }
+  .tile-label { grid-area: label; }
+  .tile-sub { grid-area: sub; }
+  .tile-value { grid-area: value; font-size: 24px; margin: 0; }
+}
+.chart { display: block; width: 100%; overflow: visible; touch-action: none; }
+.chart:focus { outline: none; }
+.chart:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; border-radius: 4px; }
+.stale .chart, .stale .tile-value { opacity: 0.5; }
+.chart-gap { height: 12px; }
+.chart text { font-size: 11px; fill: var(--muted); font-variant-numeric: tabular-nums; pointer-events: none; }
+.chart .label-strong { fill: var(--ink); font-weight: 600; }
+.chart .label-ink2 { fill: var(--ink-2); }
+.chart .halo { paint-order: stroke; stroke: var(--surface); stroke-width: 4px; stroke-linejoin: round; }
+.handle { cursor: grab; }
+.handle:active { cursor: grabbing; }
+details.table-view { margin-top: 12px; }
+details.table-view summary { cursor: pointer; color: var(--ink-2); }
+table { border-collapse: collapse; width: 100%; font-variant-numeric: tabular-nums; }
+th { text-align: left; font-weight: 600; color: var(--ink-2); font-size: 12px; padding: 6px 8px; border-bottom: 1px solid var(--grid); }
+td { padding: 5px 8px; border-bottom: 1px solid var(--grid); }
+td.num, th.num { text-align: right; }
+.points { margin-top: 12px; width: auto; }
+.points td { border: 0; padding: 3px 4px; }
+.points .arrow, .points .unit { color: var(--muted); }
+input[type="number"] {
+  width: 72px; font: inherit; color: var(--ink); background: var(--surface);
+  border: 1px solid var(--axis); border-radius: 6px; padding: 4px 6px; text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+input[type="number"]:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+input.invalid { border-color: var(--critical); }
+button.btn { font: inherit; border-radius: 8px; padding: 6px 14px; cursor: pointer; border: 1px solid var(--border); }
+button.primary { background: var(--accent); color: #fff; border-color: transparent; font-weight: 600; }
+button.ghost { background: none; color: var(--ink); }
+button.ghost:hover { background: var(--surface-sunk); }
+button.icon-btn { border: 0; background: none; color: var(--muted); font-size: 16px; line-height: 1; padding: 4px 8px; border-radius: 6px; cursor: pointer; }
+button.icon-btn:hover { background: var(--surface-sunk); color: var(--ink); }
+button:disabled { opacity: 0.45; cursor: default; }
+button.btn:focus-visible, .seg button:focus-visible, button.icon-btn:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+.add-point { margin-top: 6px; }
+.settings { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px 16px; margin-top: 16px; padding-top: 16px; border-top: 1px solid var(--grid); }
+@media (max-width: 520px) { .settings { grid-template-columns: minmax(0, 1fr); } }
+.setting label { display: block; font-weight: 600; font-size: 13px; }
+.setting .row { display: flex; align-items: center; gap: 6px; margin-top: 4px; }
+.setting .unit { color: var(--ink-2); }
+.setting .help { color: var(--muted); font-size: 12px; margin-top: 2px; }
+.actions { display: flex; align-items: center; gap: 8px; margin-top: 16px; flex-wrap: wrap; }
+.message { font-size: 13px; color: var(--ink-2); display: inline-flex; gap: 6px; align-items: baseline; }
+.message .icon { font-size: 11px; }
+.message.ok .icon { color: var(--good-text); }
+.message.error .icon { color: var(--critical); }
+.message.error { color: var(--ink); }
+.tooltip {
+  position: fixed; z-index: 10; pointer-events: none; min-width: 160px;
+  background: var(--surface); color: var(--ink); border: 1px solid var(--border); border-radius: 8px;
+  box-shadow: var(--shadow); padding: 8px 10px; font-size: 12px;
+}
+.tooltip[hidden] { display: none; }
+.tooltip .time { color: var(--muted); margin-bottom: 4px; font-variant-numeric: tabular-nums; }
+.tooltip .row { display: flex; align-items: center; gap: 8px; }
+.tooltip .key { width: 12px; height: 2px; border-radius: 1px; flex: none; }
+.tooltip .val { font-weight: 600; font-variant-numeric: tabular-nums; }
+.tooltip .name { color: var(--ink-2); }
+.empty { color: var(--ink-2); padding: 24px; text-align: center; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header class="top">
+    <div>
+      <h1>Lüftersteuerung</h1>
+      <p class="subtitle" id="subtitle">Verbinde …</p>
+    </div>
+    <div class="conn" id="conn" role="status"><span class="dot"></span><span id="conn-text">Verbinde …</span></div>
+  </header>
+
+  <div class="filters">
+    <span class="label" id="range-label">Zeitraum</span>
+    <div class="seg" role="group" aria-labelledby="range-label" id="range">
+      <button type="button" data-range="300">5 min</button>
+      <button type="button" data-range="900">15 min</button>
+      <button type="button" data-range="3600">60 min</button>
+    </div>
+  </div>
+  <p class="notice" id="notice" hidden></p>
+  <main id="fans"></main>
+</div>
+<div class="tooltip" id="tooltip" hidden></div>
+
+<template id="fan-template">
+  <section class="fan">
+    <div class="fan-head">
+      <h2 data-ref="title"></h2>
+      <span class="badge" data-ref="badge"><span class="icon" data-ref="badgeIcon"></span><span data-ref="badgeText"></span></span>
+      <span class="fan-meta" data-ref="meta"></span>
+    </div>
+    <div class="grid">
+      <div class="col">
+        <div class="tiles">
+          <div class="tile">
+            <div class="tile-label">CPU-Temperatur</div>
+            <div class="tile-value" data-ref="temp">–</div>
+            <div class="tile-sub" data-ref="tempSub"></div>
+          </div>
+          <div class="tile">
+            <div class="tile-label">Lüfter</div>
+            <div class="tile-value" data-ref="percent">–</div>
+            <div class="tile-sub" data-ref="percentSub"></div>
+          </div>
+          <div class="tile">
+            <div class="tile-label">Drehzahl</div>
+            <div class="tile-value" data-ref="rpm">–</div>
+            <div class="tile-sub" data-ref="rpmSub"></div>
+          </div>
+        </div>
+        <div class="panel">
+          <h3>Temperatur <span class="unit">°C</span></h3>
+          <svg class="chart" data-ref="tempChart" data-chart="temp" tabindex="0" role="img"></svg>
+          <div class="chart-gap"></div>
+          <h3>Lüfter <span class="unit">%</span></h3>
+          <svg class="chart" data-ref="fanChart" data-chart="fan" tabindex="0" role="img"></svg>
+          <details class="table-view" data-ref="tableView">
+            <summary>Messwerte als Tabelle</summary>
+            <table>
+              <thead><tr><th>Zeit</th><th class="num">Temperatur</th><th class="num">Lüfter</th><th class="num">Drehzahl</th></tr></thead>
+              <tbody data-ref="tableBody"></tbody>
+            </table>
+          </details>
+        </div>
+      </div>
+      <div class="col">
+        <div class="panel">
+          <div class="panel-head">
+            <h3>Kennlinie</h3>
+            <span class="hint">Punkte ziehen oder Werte eingeben</span>
+          </div>
+          <svg class="chart" data-ref="curveChart" role="img"></svg>
+          <table class="points">
+            <thead><tr><th>Temperatur</th><th></th><th>Lüfter</th><th></th></tr></thead>
+            <tbody data-ref="pointsBody"></tbody>
+          </table>
+          <button type="button" class="btn ghost add-point" data-ref="addPoint">+ Punkt hinzufügen</button>
+          <div class="settings" data-ref="settings"></div>
+          <div class="actions">
+            <button type="button" class="btn primary" data-ref="save" disabled>Speichern</button>
+            <button type="button" class="btn ghost" data-ref="reset" disabled>Verwerfen</button>
+            <span class="message" data-ref="message" role="status"></span>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+</template>
+
+<script>
+"use strict";
+
+const NS = "http://www.w3.org/2000/svg";
+const SETTINGS = [
+  { key: "min_pwm", label: "Mindestdrehzahl", unit: "%", step: 1, help: "solange der Lüfter laufen soll" },
+  { key: "start_pwm", label: "Anlaufdrehzahl", unit: "%", step: 1, help: "beim Start aus dem Stillstand" },
+  { key: "hysteresis", label: "Hysterese", unit: "°C", step: 0.5, help: "erst so viel kühler, dann langsamer" },
+  { key: "ramp_down_step", label: "Absenkung je Messung", unit: "%", step: 1, help: "hochgeregelt wird sofort" },
+  { key: "average", label: "Mittelwert über", unit: "Messungen", step: 1, help: "glättet kurze Temperaturspitzen" },
+  { key: "critical_temp", label: "Kritische Temperatur", unit: "°C", step: 1, help: "ab hier läuft der Lüfter mit 100 %" },
+];
+const STATES = {
+  ok: { icon: "●", text: "Normal", color: "var(--good)" },
+  critical: { icon: "▲", text: "Kritische Temperatur – Lüfter auf 100 %", color: "var(--critical)" },
+  sensor: { icon: "▲", text: "Sensorfehler – Lüfter auf 100 %", color: "var(--critical)" },
+  stall: { icon: "▲", text: "Lüfter steht", color: "var(--serious)" },
+};
+const MAX_POINTS = 12;
+
+const app = {
+  range: 900, since: 0, now: 0, interval: 2, history: 3600, limits: {},
+  fans: new Map(), timer: null, lastOk: null, connected: null,
+};
+const $ = (id) => document.getElementById(id);
+const tooltip = $("tooltip");
+
+// ---------- Hilfsfunktionen ----------
+
+function fmt(value, digits = 0) {
+  if (value === null || value === undefined) return "–";
+  return value.toLocaleString("de-DE", { minimumFractionDigits: digits, maximumFractionDigits: digits });
+}
+const fmtTime = (t, seconds = false) => new Date(t * 1000).toLocaleTimeString("de-DE",
+  seconds ? { hour: "2-digit", minute: "2-digit", second: "2-digit" } : { hour: "2-digit", minute: "2-digit" });
+const clamp = (v, lo, hi) => Math.min(hi, Math.max(lo, v));
+const clone = (value) => JSON.parse(JSON.stringify(value));
+
+function svgEl(name, attrs, parent) {
+  const node = document.createElementNS(NS, name);
+  for (const [key, value] of Object.entries(attrs || {})) node.setAttribute(key, value);
+  if (parent) parent.appendChild(node);
+  return node;
+}
+function svgText(parent, x, y, text, attrs) {
+  const node = svgEl("text", { x, y, ...attrs }, parent);
+  node.textContent = text;
+  return node;
+}
+function htmlEl(name, attrs, text) {
+  const node = document.createElement(name);
+  for (const [key, value] of Object.entries(attrs || {})) node.setAttribute(key, value);
+  if (text !== undefined) node.textContent = text;
+  return node;
+}
+function setValue(node, value, unit) {
+  node.replaceChildren(document.createTextNode(value));
+  if (unit && value !== "–") node.appendChild(htmlEl("span", { class: "unit" }, unit));
+}
+function niceStep(range, maxTicks) {
+  for (const step of [1, 2, 5, 10, 20, 25, 50, 100]) if (range / step <= maxTicks) return step;
+  return 100;
+}
+function duration(seconds) {
+  const m = Math.floor(seconds / 60), h = Math.floor(m / 60), d = Math.floor(h / 24);
+  if (d) return `${d} d ${h % 24} h`;
+  if (h) return `${h} h ${m % 60} min`;
+  return `${m} min`;
+}
+function storage(key, value) {
+  try {
+    if (value === undefined) return localStorage.getItem(key);
+    localStorage.setItem(key, value);
+  } catch (err) { /* privater Modus o.ä. */ }
+  return null;
+}
+
+// ---------- Daten holen ----------
+
+async function poll() {
+  clearTimeout(app.timer);
+  try {
+    const res = await fetch(`api/status?since=${app.since}`, { cache: "no-store", credentials: "same-origin" });
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    update(await res.json());
+    setConnection(true);
+  } catch (err) {
+    setConnection(false);
+  }
+  app.timer = setTimeout(poll, Math.max(1, app.interval) * 1000);
+}
+
+function setConnection(ok) {
+  if (ok) app.lastOk = Date.now();
+  if (app.connected === ok && ok) return;
+  app.connected = ok;
+  const conn = $("conn");
+  conn.className = "conn " + (ok ? "ok" : "error");
+  $("conn-text").textContent = ok ? "Live"
+    : app.lastOk ? `Keine Verbindung seit ${new Date(app.lastOk).toLocaleTimeString("de-DE")}` : "Keine Verbindung";
+  document.body.classList.toggle("stale", !ok);
+}
+
+function update(data) {
+  app.now = data.time;
+  app.interval = data.interval;
+  app.history = data.history;
+  app.limits = data.limits;
+  $("subtitle").textContent = `${data.host} · cpu-fancontrol ${data.version} · läuft seit ${duration(data.time - data.started)}`;
+  const notice = $("notice");
+  notice.hidden = !data.dry_run;
+  notice.textContent = data.dry_run ? "Testlauf: Der Dienst berechnet nur, die Lüfter werden nicht angesteuert." : "";
+  if (!data.fans.length) {
+    $("fans").replaceChildren(htmlEl("p", { class: "empty" }, "Keine Lüfter konfiguriert."));
+    return;
+  }
+  for (const fan of data.fans) {
+    let entry = app.fans.get(fan.name);
+    if (!entry) {
+      entry = createFan(fan);
+      app.fans.set(fan.name, entry);
+    }
+    entry.live = fan;
+    for (const sample of fan.samples) entry.samples.push(sample);
+    const cutoff = app.now - app.history;
+    const first = entry.samples.findIndex((s) => s[0] >= cutoff);
+    if (first > 0) entry.samples.splice(0, first);
+    if (fan.samples.length) app.since = Math.max(app.since, fan.samples[fan.samples.length - 1][0]);
+    setServerSettings(entry, fan.settings);
+    renderFan(entry);
+  }
+}
+
+// ---------- Aufbau einer Lüfter-Karte ----------
+
+function createFan(fan) {
+  const node = $("fan-template").content.firstElementChild.cloneNode(true);
+  const entry = {
+    name: fan.name, node, samples: [], visible: [], geo: {}, inputs: {},
+    hover: null, drag: null, dirty: false, settingsKey: "",
+  };
+  for (const ref of node.querySelectorAll("[data-ref]")) entry[ref.dataset.ref] = ref;
+  entry.title.textContent = `Lüfter „${fan.name}“`;
+
+  for (const setting of SETTINGS) {
+    const id = `${fan.name}-${setting.key}`.replace(/[^A-Za-z0-9_-]/g, "_");
+    const wrap = htmlEl("div", { class: "setting" });
+    wrap.appendChild(htmlEl("label", { for: id }, setting.label));
+    const row = htmlEl("div", { class: "row" });
+    const input = htmlEl("input", { type: "number", id, step: setting.step, inputmode: "decimal" });
+    input.addEventListener("input", () => {
+      const value = parseFloat(input.value.replace(",", "."));
+      entry.draft[setting.key] = Number.isFinite(value) ? value : null;
+      changed(entry);
+    });
+    row.append(input, htmlEl("span", { class: "unit" }, setting.unit));
+    wrap.append(row, htmlEl("div", { class: "help" }, setting.help));
+    entry.settings.appendChild(wrap);
+    entry.inputs[setting.key] = input;
+  }
+
+  for (const svg of [entry.tempChart, entry.fanChart]) attachHover(entry, svg);
+  attachDrag(entry);
+  entry.addPoint.addEventListener("click", () => addPoint(entry));
+  entry.save.addEventListener("click", () => save(entry));
+  entry.reset.addEventListener("click", () => {
+    entry.draft = clone(entry.server);
+    syncInputs(entry);
+    changed(entry);
+    showMessage(entry, "");
+  });
+  entry.tableView.addEventListener("toggle", () => renderTable(entry));
+  $("fans").appendChild(node);
+  return entry;
+}
+
+function setServerSettings(entry, settings) {
+  entry.server = settings;
+  const key = JSON.stringify(settings);
+  // Eigene, noch nicht gespeicherte Änderungen nicht überschreiben
+  if (entry.dirty || key === entry.settingsKey) return;
+  entry.settingsKey = key;
+  entry.draft = clone(settings);
+  syncInputs(entry);
+}
+
+function syncInputs(entry) {
+  for (const setting of SETTINGS) {
+    const input = entry.inputs[setting.key];
+    const [lo, hi] = app.limits[setting.key] || [0, 1000];
+    input.min = lo;
+    input.max = hi;
+    input.value = entry.draft[setting.key];
+  }
+  renderPoints(entry);
+}
+
+// ---------- Darstellung ----------
+
+function renderFan(entry) {
+  const fan = entry.live;
+  const state = STATES[fan.state] || STATES.ok;
+  entry.badgeIcon.textContent = state.icon;
+  entry.badgeIcon.style.color = state.color;
+  entry.badgeText.textContent = state.text;
+  entry.meta.textContent = `Ausgang ${fan.pwm} · Sensor ${fan.sensors.join(", ")}`;
+
+  setValue(entry.temp, fmt(fan.temp, 1), "°C");
+  entry.tempSub.textContent = fan.average === null ? "kein Messwert" : `Mittelwert ${fmt(fan.average, 1)} °C`;
+  setValue(entry.percent, fmt(fan.percent, 0), "%");
+  entry.percentSub.textContent = `Ausgang ${fan.pwm}`;
+  setValue(entry.rpm, fmt(fan.rpm, 0), "U/min");
+  entry.rpmSub.textContent = fan.fan || "kein Drehzahlsensor eingetragen";
+
+  drawHistory(entry);
+  if (!entry.drag) drawCurve(entry);
+  if (entry.tableView.open) renderTable(entry);
+}
+
+function drawHistory(entry) {
+  const t1 = app.now, t0 = t1 - app.range;
+  entry.visible = entry.samples.filter((s) => s[0] >= t0);
+  const temps = entry.visible.map((s) => s[1]).filter((v) => v !== null);
+  let lo = 30, hi = 60;
+  if (temps.length) {
+    lo = Math.floor((Math.min(...temps) - 3) / 5) * 5;
+    hi = Math.ceil((Math.max(...temps) + 3) / 5) * 5;
+  }
+  if (hi - lo < 20) { lo -= 5; hi = lo + 20; }
+  const critical = entry.live.settings.critical_temp;
+  const minutes = app.range / 60;
+  entry.geo.temp = drawLineChart(entry.tempChart, entry.visible, 1, [lo, hi], t0, t1, {
+    color: "var(--temp)",
+    threshold: critical >= lo && critical <= hi ? { value: critical, label: `kritisch ${fmt(critical)} °C` } : null,
+  });
+  entry.geo.fan = drawLineChart(entry.fanChart, entry.visible, 2, [0, 100], t0, t1, { color: "var(--fan)" });
+  const last = entry.visible[entry.visible.length - 1];
+  entry.tempChart.setAttribute("aria-label", `Temperaturverlauf der letzten ${minutes} Minuten` +
+    (last && last[1] !== null ? `, aktuell ${fmt(last[1], 1)} °C` : ""));
+  entry.fanChart.setAttribute("aria-label", `Lüfterverlauf der letzten ${minutes} Minuten` +
+    (last ? `, aktuell ${fmt(last[2])} %` : ""));
+  if (entry.hover) showHover(entry);
+}
+
+function drawLineChart(svg, samples, idx, [lo, hi], t0, t1, opts) {
+  const W = Math.max(260, Math.round(svg.getBoundingClientRect().width || 600));
+  const H = 136;
+  const m = { l: 34, r: 12, t: 10, b: 22 };
+  svg.setAttribute("viewBox", `0 0 ${W} ${H}`);
+  svg.setAttribute("height", H);
+  svg.replaceChildren();
+  const x = (t) => m.l + ((t - t0) / (t1 - t0)) * (W - m.l - m.r);
+  const y = (v) => m.t + (1 - (clamp(v, lo, hi) - lo) / (hi - lo)) * (H - m.t - m.b);
+
+  const step = niceStep(hi - lo, 4);
+  for (let v = Math.ceil(lo / step) * step; v <= hi + 1e-9; v += step) {
+    svgEl("line", { x1: m.l, x2: W - m.r, y1: y(v), y2: y(v), stroke: v === lo ? "var(--axis)" : "var(--grid)", "stroke-width": 1 }, svg);
+    svgText(svg, m.l - 6, y(v) + 4, fmt(v), { "text-anchor": "end" });
+  }
+  svgEl("line", { x1: m.l, x2: W - m.r, y1: H - m.b, y2: H - m.b, stroke: "var(--axis)", "stroke-width": 1 }, svg);
+  const tStep = app.range <= 300 ? 60 : app.range <= 900 ? 180 : 900;
+  for (let t = Math.ceil(t0 / tStep) * tStep; t <= t1; t += tStep) {
+    if (x(t) < m.l + 16 || x(t) > W - m.r - 16) continue;
+    svgText(svg, x(t), H - 6, fmtTime(t), { "text-anchor": "middle" });
+  }
+  if (opts.threshold) {
+    const ty = y(opts.threshold.value);
+    svgEl("line", { x1: m.l, x2: W - m.r, y1: ty, y2: ty, stroke: "var(--critical)", "stroke-width": 1 }, svg);
+    svgText(svg, W - m.r, ty - 4, opts.threshold.label, { "text-anchor": "end", class: "label-ink2 halo" });
+  }
+
+  let d = "", pen = false, lastPoint = null;
+  for (const s of samples) {
+    if (s[idx] === null) { pen = false; continue; }
+    d += `${pen ? "L" : "M"}${x(s[0]).toFixed(1)} ${y(s[idx]).toFixed(1)}`;
+    pen = true;
+    lastPoint = s;
+  }
+  if (d) {
+    svgEl("path", { d, fill: "none", stroke: opts.color, "stroke-width": 2, "stroke-linejoin": "round", "stroke-linecap": "round" }, svg);
+  }
+  if (lastPoint) {
+    svgEl("circle", { cx: x(lastPoint[0]), cy: y(lastPoint[idx]), r: 4, fill: opts.color, stroke: "var(--surface)", "stroke-width": 2 }, svg);
+  } else {
+    svgText(svg, (m.l + W - m.r) / 2, (m.t + H - m.b) / 2 + 4, "Noch keine Messwerte", { "text-anchor": "middle" });
+  }
+  const cross = svgEl("g", { visibility: "hidden" }, svg);
+  const crossLine = svgEl("line", { y1: m.t, y2: H - m.b, stroke: "var(--muted)", "stroke-width": 1 }, cross);
+  const crossDot = svgEl("circle", { r: 4, fill: opts.color, stroke: "var(--surface)", "stroke-width": 2 }, cross);
+  return { x, y, m, W, H, t0, t1, idx, cross, crossLine, crossDot };
+}
+
+// ---------- Fadenkreuz & Tooltip ----------
+
+function nearestIndex(samples, t) {
+  if (!samples.length) return -1;
+  let lo = 0, hi = samples.length - 1;
+  while (lo < hi) {
+    const mid = (lo + hi) >> 1;
+    if (samples[mid][0] < t) lo = mid + 1; else hi = mid;
+  }
+  if (lo > 0 && Math.abs(samples[lo - 1][0] - t) < Math.abs(samples[lo][0] - t)) lo -= 1;
+  return lo;
+}
+
+function attachHover(entry, svg) {
+  svg.addEventListener("pointermove", (e) => {
+    const geo = entry.geo[svg.dataset.chart];
+    if (!geo) return;
+    const rect = svg.getBoundingClientRect();
+    const px = ((e.clientX - rect.left) * geo.W) / rect.width;
+    const t = geo.t0 + ((px - geo.m.l) / (geo.W - geo.m.l - geo.m.r)) * (geo.t1 - geo.t0);
+    const i = nearestIndex(entry.visible, t);
+    if (i < 0) return hideHover(entry);
+    entry.hover = { t: entry.visible[i][0], clientX: e.clientX, clientY: e.clientY };
+    showHover(entry);
+  });
+  svg.addEventListener("pointerleave", () => hideHover(entry));
+  svg.addEventListener("blur", () => hideHover(entry));
+  svg.addEventListener("focus", () => moveHoverByKey(entry, svg, 0));
+  svg.addEventListener("keydown", (e) => {
+    const delta = { ArrowLeft: -1, ArrowRight: 1, Home: -Infinity, End: Infinity }[e.key];
+    if (delta === undefined) {
+      if (e.key === "Escape") hideHover(entry);
+      return;
+    }
+    e.preventDefault();
+    moveHoverByKey(entry, svg, delta);
+  });
+}
+
+function moveHoverByKey(entry, svg, delta) {
+  if (!entry.visible.length) return;
+  let i = entry.hover ? nearestIndex(entry.visible, entry.hover.t) : entry.visible.length - 1;
+  i = clamp(i + (Number.isFinite(delta) ? delta : delta > 0 ? entry.visible.length : -entry.visible.length),
+    0, entry.visible.length - 1);
+  const geo = entry.geo[svg.dataset.chart];
+  const rect = svg.getBoundingClientRect();
+  const sample = entry.visible[i];
+  entry.hover = {
+    t: sample[0],
+    clientX: rect.left + (geo.x(sample[0]) * rect.width) / geo.W,
+    clientY: rect.top + rect.height / 2,
+  };
+  showHover(entry);
+}
+
+function showHover(entry) {
+  const i = nearestIndex(entry.visible, entry.hover.t);
+  if (i < 0) return hideHover(entry);
+  const sample = entry.visible[i];
+  for (const geo of [entry.geo.temp, entry.geo.fan]) {
+    if (!geo) continue;
+    const X = geo.x(sample[0]);
+    geo.crossLine.setAttribute("x1", X);
+    geo.crossLine.setAttribute("x2", X);
+    const value = sample[geo.idx];
+    geo.crossDot.setAttribute("visibility", value === null ? "hidden" : "inherit");
+    if (value !== null) {
+      geo.crossDot.setAttribute("cx", X);
+      geo.crossDot.setAttribute("cy", geo.y(value));
+    }
+    geo.cross.setAttribute("visibility", "visible");
+  }
+  const rows = [
+    [fmt(sample[1], 1) + " °C", "Temperatur", "var(--temp)"],
+    [fmt(sample[2]) + " %", "Lüfter", "var(--fan)"],
+    [sample[3] === null ? "–" : fmt(sample[3]) + " U/min", "Drehzahl", null],
+  ];
+  tooltip.replaceChildren(htmlEl("div", { class: "time" }, fmtTime(sample[0], true)));
+  for (const [value, name, color] of rows) {
+    const row = htmlEl("div", { class: "row" });
+    const key = htmlEl("span", { class: "key" });
+    key.style.background = color || "transparent";
+    row.append(key, htmlEl("span", { class: "val" }, value), htmlEl("span", { class: "name" }, name));
+    tooltip.appendChild(row);
+  }
+  tooltip.hidden = false;
+  const { clientX, clientY } = entry.hover;
+  const w = tooltip.offsetWidth, h = tooltip.offsetHeight;
+  let left = clientX + 14, top = clientY + 14;
+  if (left + w > window.innerWidth - 8) left = clientX - w - 14;
+  if (top + h > window.innerHeight - 8) top = clientY - h - 14;
+  tooltip.style.left = `${Math.max(8, left)}px`;
+  tooltip.style.top = `${Math.max(8, top)}px`;
+}
+
+function hideHover(entry) {
+  entry.hover = null;
+  tooltip.hidden = true;
+  for (const geo of [entry.geo.temp, entry.geo.fan]) if (geo) geo.cross.setAttribute("visibility", "hidden");
+}
+
+function renderTable(entry) {
+  if (!entry.tableView.open) return;
+  const rows = entry.samples.slice(-20).reverse().map((s) => {
+    const tr = htmlEl("tr");
+    tr.append(
+      htmlEl("td", {}, fmtTime(s[0], true)),
+      htmlEl("td", { class: "num" }, `${fmt(s[1], 1)} °C`),
+      htmlEl("td", { class: "num" }, `${fmt(s[2])} %`),
+      htmlEl("td", { class: "num" }, s[3] === null ? "–" : `${fmt(s[3])} U/min`),
+    );
+    return tr;
+  });
+  entry.tableBody.replaceChildren(...rows);
+}
+
+// ---------- Kennlinie ----------
+
+function curveDomain(entry) {
+  const pts = entry.draft.curve;
+  const lo = Math.min(20, Math.floor((pts[0][0] - 5) / 10) * 10);
+  const hi = Math.max(100, Math.ceil((pts[pts.length - 1][0] + 5) / 10) * 10, Math.ceil((entry.draft.critical_temp + 5) / 10) * 10);
+  return [Math.max(0, lo), Math.min(130, hi)];
+}
+
+function drawCurve(entry) {
+  const svg = entry.curveChart;
+  const draft = entry.draft;
+  if (!draft || !draft.curve.length) return;
+  const W = Math.max(260, Math.round(svg.getBoundingClientRect().width || 480));
+  const H = 248;
+  const m = { l: 34, r: 14, t: 28, b: 26 };
+  const [T0, T1] = entry.drag ? entry.drag.domain : curveDomain(entry);
+  svg.setAttribute("viewBox", `0 0 ${W} ${H}`);
+  svg.setAttribute("height", H);
+  svg.replaceChildren();
+  const x = (t) => m.l + ((clamp(t, T0, T1) - T0) / (T1 - T0)) * (W - m.l - m.r);
+  const y = (p) => m.t + (1 - clamp(p, 0, 100) / 100) * (H - m.t - m.b);
+  entry.curveGeo = { W, H, m, T0, T1 };
+
+  for (let p = 0; p <= 100; p += 20) {
+    svgEl("line", { x1: m.l, x2: W - m.r, y1: y(p), y2: y(p), stroke: p === 0 ? "var(--axis)" : "var(--grid)", "stroke-width": 1 }, svg);
+    svgText(svg, m.l - 6, y(p) + 4, p === 100 ? "100 %" : String(p), { "text-anchor": "end" });
+  }
+  const tStep = T1 - T0 > 100 ? 20 : 10;
+  for (let t = Math.ceil(T0 / tStep) * tStep; t <= T1; t += tStep) {
+    svgText(svg, x(t), H - 8, t === T1 - (T1 % tStep) ? `${t} °C` : String(t), { "text-anchor": "middle" });
+  }
+
+  const pts = draft.curve;
+  const line = [];
+  if (pts[0][0] > T0) line.push([T0, pts[0][1]]);
+  line.push(...pts);
+  if (pts[pts.length - 1][0] < T1) line.push([T1, pts[pts.length - 1][1]]);
+  const d = line.map(([t, p], i) => `${i ? "L" : "M"}${x(t).toFixed(1)} ${y(p).toFixed(1)}`).join("");
+  svgEl("path", { d: `${d}L${x(T1)} ${y(0)}L${x(T0)} ${y(0)}Z`, fill: "var(--fan)", "fill-opacity": 0.10 }, svg);
+  svgEl("path", { d, fill: "none", stroke: "var(--fan)", "stroke-width": 2, "stroke-linejoin": "round" }, svg);
+
+  // Mindestdrehzahl: Beschriftung unter der Linie (darüber verläuft die Kennlinie)
+  if (Number.isFinite(draft.min_pwm) && draft.min_pwm > 0) {
+    const my = y(draft.min_pwm);
+    svgEl("line", { x1: m.l, x2: W - m.r, y1: my, y2: my, stroke: "var(--ink-2)", "stroke-width": 1, "stroke-opacity": 0.6 }, svg);
+    svgText(svg, m.l + 6, my + 14 < H - m.b - 2 ? my + 14 : my - 5, `Mindestdrehzahl ${fmt(draft.min_pwm)} %`, { class: "label-ink2 halo" });
+  }
+  // Kritische Temperatur: Beschriftung im oberen Rand, oberhalb der Kennlinie
+  if (Number.isFinite(draft.critical_temp) && draft.critical_temp >= T0 && draft.critical_temp <= T1) {
+    const cx = x(draft.critical_temp);
+    svgEl("line", { x1: cx, x2: cx, y1: m.t - 6, y2: H - m.b, stroke: "var(--critical)", "stroke-width": 1 }, svg);
+    const label = svgText(svg, cx + 4, m.t - 10, `kritisch ${fmt(draft.critical_temp)} °C`, { class: "label-ink2" });
+    if (cx + 4 + label.getComputedTextLength() > W) {
+      label.setAttribute("x", cx - 4);
+      label.setAttribute("text-anchor", "end");
+    }
+  }
+
+  pts.forEach(([t, p], i) => {
+    const g = svgEl("g", { class: "handle" }, svg);
+    svgEl("circle", { cx: x(t), cy: y(p), r: 14, fill: "transparent" }, g);
+    svgEl("circle", { cx: x(t), cy: y(p), r: 6, fill: "var(--fan)", stroke: "var(--surface)", "stroke-width": 2 }, g);
+    g.addEventListener("pointerdown", (e) => {
+      e.preventDefault();
+      entry.drag = { index: i, domain: [T0, T1] };
+      svg.setPointerCapture(e.pointerId);
+      drawCurve(entry);
+    });
+  });
+  // Aktueller Betriebspunkt. Die Beschriftung steht links oberhalb: Dort liegt
+  // bei einer steigenden Kennlinie weder Linie noch Punkt.
+  const live = entry.live;
+  if (live && live.average !== null && live.percent !== null) {
+    const cx = x(live.average), cy = y(live.percent);
+    svgEl("circle", { cx, cy, r: 5, fill: "var(--ink)", stroke: "var(--surface)", "stroke-width": 2 }, svg);
+    if (!entry.drag) {
+      const label = svgText(svg, cx - 9, cy - 9, `jetzt ${fmt(live.average, 1)} °C · ${fmt(live.percent)} %`,
+        { "text-anchor": "end", class: "label-strong halo" });
+      if (cx - 9 - label.getComputedTextLength() < m.l) {
+        label.setAttribute("x", cx + 9);
+        label.setAttribute("text-anchor", "start");
+      }
+      if (cy - 9 - 11 < 0) label.setAttribute("y", cy + 18);
+    }
+  }
+  if (entry.drag) {
+    const [t, p] = pts[entry.drag.index];
+    const above = y(p) > m.t + 30;
+    svgText(svg, x(t), y(p) + (above ? -14 : 24), `${fmt(t)} °C → ${fmt(p)} %`, { "text-anchor": "middle", class: "label-strong halo" });
+  }
+  svg.setAttribute("aria-label", "Kennlinie: " + pts.map(([t, p]) => `${fmt(t)} °C ${fmt(p)} %`).join(", "));
+}
+
+function attachDrag(entry) {
+  const svg = entry.curveChart;
+  svg.addEventListener("pointermove", (e) => {
+    if (!entry.drag) return;
+    const { W, H, m, T0, T1 } = entry.curveGeo;
+    const rect = svg.getBoundingClientRect();
+    const px = ((e.clientX - rect.left) * W) / rect.width;
+    const py = ((e.clientY - rect.top) * H) / rect.height;
+    const pts = entry.draft.curve;
+    const i = entry.drag.index;
+    const t = T0 + ((px - m.l) / (W - m.l - m.r)) * (T1 - T0);
+    const p = (1 - (py - m.t) / (H - m.t - m.b)) * 100;
+    const tMin = i > 0 ? pts[i - 1][0] + 1 : T0;
+    const tMax = i < pts.length - 1 ? pts[i + 1][0] - 1 : T1;
+    const pMin = i > 0 ? pts[i - 1][1] : 0;
+    const pMax = i < pts.length - 1 ? pts[i + 1][1] : 100;
+    pts[i] = [clamp(Math.round(t), tMin, tMax), clamp(Math.round(p), pMin, pMax)];
+    drawCurve(entry);
+    renderPoints(entry);
+    changed(entry);
+  });
+  const end = () => {
+    if (!entry.drag) return;
+    entry.drag = null;
+    drawCurve(entry);
+  };
+  svg.addEventListener("pointerup", end);
+  svg.addEventListener("pointercancel", end);
+}
+
+function renderPoints(entry) {
+  const pts = entry.draft.curve;
+  const rows = pts.map((point, i) => {
+    const tr = htmlEl("tr");
+    const inputs = [0, 1].map((k) => {
+      const input = htmlEl("input", {
+        type: "number", step: 1, inputmode: "decimal", min: 0, max: k ? 100 : 120,
+        "aria-label": `Punkt ${i + 1}: ${k ? "Lüfter in %" : "Temperatur in °C"}`,
+      });
+      input.value = point[k];
+      input.addEventListener("input", () => {
+        const value = parseFloat(input.value.replace(",", "."));
+        point[k] = Number.isFinite(value) ? value : null;
+        changed(entry);
+        drawCurve(entry);
+      });
+      // Nach dem Bearbeiten nach Temperatur sortieren
+      input.addEventListener("change", () => {
+        if (pts.every((p) => p[0] !== null)) pts.sort((a, b) => a[0] - b[0]);
+        renderPoints(entry);
+        drawCurve(entry);
+      });
+      return input;
+    });
+    const remove = htmlEl("button", { type: "button", class: "icon-btn", "aria-label": `Punkt ${i + 1} entfernen`, title: "Punkt entfernen" }, "×");
+    remove.disabled = pts.length <= 1;
+    remove.addEventListener("click", () => {
+      pts.splice(i, 1);
+      renderPoints(entry);
+      drawCurve(entry);
+      changed(entry);
+    });
+    const tdT = htmlEl("td");
+    tdT.append(inputs[0], htmlEl("span", { class: "unit" }, " °C"));
+    const tdP = htmlEl("td");
+    tdP.append(inputs[1], htmlEl("span", { class: "unit" }, " %"));
+    const tdRemove = htmlEl("td");
+    tdRemove.appendChild(remove);
+    tr.append(tdT, htmlEl("td", { class: "arrow" }, "→"), tdP, tdRemove);
+    return tr;
+  });
+  entry.pointsBody.replaceChildren(...rows);
+  entry.addPoint.disabled = pts.length >= MAX_POINTS;
+}
+
+function addPoint(entry) {
+  const pts = entry.draft.curve;
+  if (pts.length >= MAX_POINTS) return;
+  const last = pts[pts.length - 1];
+  if (last[0] <= 95) {
+    pts.push([last[0] + 5, Math.min(100, last[1] + 10)]);
+  } else {
+    // in die größte Lücke einfügen
+    let best = -1;
+    for (let i = 1; i < pts.length; i++) if (best < 0 || pts[i][0] - pts[i - 1][0] > pts[best][0] - pts[best - 1][0]) best = i;
+    if (best < 0 || pts[best][0] - pts[best - 1][0] < 2) return;
+    const [t0, p0] = pts[best - 1], [t1, p1] = pts[best];
+    const t = Math.round((t0 + t1) / 2);
+    pts.splice(best, 0, [t, Math.round(p0 + ((p1 - p0) * (t - t0)) / (t1 - t0))]);
+  }
+  renderPoints(entry);
+  drawCurve(entry);
+  changed(entry);
+}
+
+// ---------- Prüfen & Speichern ----------
+
+function validate(draft) {
+  const pts = draft.curve;
+  if (!pts.length) return "Die Kennlinie braucht mindestens einen Punkt.";
+  for (const [t, p] of pts) {
+    if (t === null || p === null) return "Bitte alle Punkte der Kennlinie ausfüllen.";
+    if (p < 0 || p > 100) return "Die Drehzahl der Kennlinie muss zwischen 0 und 100 % liegen.";
+  }
+  for (let i = 1; i < pts.length; i++) {
+    if (pts[i][0] <= pts[i - 1][0]) return "Die Temperaturen der Kennlinie müssen aufsteigend sein.";
+    if (pts[i][1] < pts[i - 1][1]) return "Die Drehzahl darf mit steigender Temperatur nicht sinken.";
+  }
+  for (const setting of SETTINGS) {
+    const value = draft[setting.key];
+    const [lo, hi] = app.limits[setting.key] || [-Infinity, Infinity];
+    if (value === null || value < lo || value > hi) return `${setting.label}: erlaubt sind ${fmt(lo)} bis ${fmt(hi)} ${setting.unit}.`;
+    if (setting.key === "average" && !Number.isInteger(value)) return `${setting.label}: bitte eine ganze Zahl angeben.`;
+  }
+  return null;
+}
+
+function changed(entry) {
+  entry.dirty = JSON.stringify(entry.draft) !== JSON.stringify(entry.server);
+  entry.save.disabled = !entry.dirty;
+  entry.reset.disabled = !entry.dirty;
+  for (const setting of SETTINGS) {
+    const input = entry.inputs[setting.key];
+    const value = entry.draft[setting.key];
+    const [lo, hi] = app.limits[setting.key] || [-Infinity, Infinity];
+    input.classList.toggle("invalid", value === null || value < lo || value > hi);
+  }
+  if (entry.dirty) showMessage(entry, "Nicht gespeicherte Änderungen");
+  else if (entry.message.dataset.kind !== "ok") showMessage(entry, "");
+}
+
+function showMessage(entry, text, kind = "") {
+  entry.message.className = "message " + kind;
+  entry.message.dataset.kind = kind;
+  entry.message.replaceChildren();
+  if (!text) return;
+  if (kind) entry.message.appendChild(htmlEl("span", { class: "icon", "aria-hidden": "true" }, kind === "ok" ? "✓" : "▲"));
+  entry.message.appendChild(htmlEl("span", {}, text));
+}
+
+async function save(entry) {
+  const error = validate(entry.draft);
+  if (error) return showMessage(entry, error, "error");
+  entry.save.disabled = true;
+  showMessage(entry, "Speichere …");
+  try {
+    const res = await fetch("api/settings", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      credentials: "same-origin",
+      body: JSON.stringify({ fan: entry.name, ...entry.draft }),
+    });
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) throw new Error(data.error || `Fehler ${res.status}`);
+    entry.dirty = false;
+    entry.settingsKey = "";
+    entry.live.settings = data.fan.settings;
+    setServerSettings(entry, data.fan.settings);
+    changed(entry);
+    showMessage(entry, "Gespeichert und sofort übernommen", "ok");
+    renderFan(entry);
+  } catch (err) {
+    entry.save.disabled = false;
+    showMessage(entry, err.message, "error");
+  }
+}
+
+// ---------- Start ----------
+
+function setRange(seconds) {
+  app.range = seconds;
+  storage("cpu-fancontrol.range", String(seconds));
+  for (const button of document.querySelectorAll("#range button")) {
+    button.setAttribute("aria-pressed", String(Number(button.dataset.range) === seconds));
+  }
+  for (const entry of app.fans.values()) {
+    hideHover(entry);
+    if (entry.live) drawHistory(entry);
+  }
+}
+
+for (const button of document.querySelectorAll("#range button")) {
+  button.addEventListener("click", () => setRange(Number(button.dataset.range)));
+}
+setRange(Number(storage("cpu-fancontrol.range")) || 900);
+
+let resizeFrame = 0;
+window.addEventListener("resize", () => {
+  cancelAnimationFrame(resizeFrame);
+  resizeFrame = requestAnimationFrame(() => {
+    for (const entry of app.fans.values()) if (entry.live) renderFan(entry);
+  });
+});
+document.addEventListener("visibilitychange", () => { if (!document.hidden) poll(); });
+poll();
+</script>
+</body>
+</html>

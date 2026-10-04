@@ -4,6 +4,10 @@ Regelt den CPU-Lüfter (und bei Bedarf weitere Lüfter) eines Ubuntu-Rechners an
 der CPU-Temperatur. Das Programm läuft als systemd-Dienst und benötigt nur Python 3
 ohne zusätzliche Pakete.
 
+![Weboberfläche](docs/weboberflaeche.png)
+
+- **Weboberfläche** unter `http://<server>/fan/`: Live-Werte, Verlauf der letzten Stunde, Kennlinie per Maus
+  bearbeiten, Änderungen werden sofort übernommen
 - **Frei einstellbare Kennlinie** (Temperatur → Drehzahl), linear interpoliert
 - **Hysterese, Mittelwert und gebremstes Herunterregeln**, damit der Lüfter nicht ständig auf- und abdreht
 - **Mindest- und Anlaufdrehzahl** für Lüfter, die bei niedriger PWM stehen bleiben
@@ -62,9 +66,12 @@ Das Skript installiert:
 | Datei | Zweck |
 |---|---|
 | `/usr/local/sbin/cpu-fancontrol` | das Programm |
+| `/usr/local/share/cpu-fancontrol/index.html` | die Weboberfläche |
 | `/etc/cpu-fancontrol.conf` | Konfiguration (eine vorhandene Datei wird nie überschrieben) |
 | `/etc/systemd/system/cpu-fancontrol.service` | systemd-Dienst |
 
+Läuft auf dem Server Apache, bietet das Skript an, die Weboberfläche dort unter `/fan` einzubinden.
+Bei nginx legt es ein Snippet an, das du in die Seite einbindest (siehe [Weboberfläche](#6-weboberfläche)).
 Der Dienst wird erst aktiviert, wenn du ihn in Schritt 5 einschaltest.
 
 ## 3. CPU-Lüfter finden
@@ -137,6 +144,7 @@ Mindestens `pwm` musst du anpassen. Alle Optionen sind in der Datei kommentiert:
 | `critical_temp` | `85` | ab dieser Temperatur sofort 100 % |
 
 Für weitere Lüfter, zum Beispiel Gehäuselüfter, legst du zusätzliche Abschnitte `[fan:<name>]` an.
+Die Optionen der Weboberfläche (Abschnitt `[web]`) beschreibt [Abschnitt 6](#6-weboberfläche).
 
 Danach prüfen:
 
@@ -159,11 +167,87 @@ Nach Änderungen an der Konfiguration: `sudo systemctl restart cpu-fancontrol`.
 Ins Log schreibt der Dienst nur Änderungen ab 10 % sowie Warnungen. Ein Beispiel:
 
 ```
-cpu-fancontrol 1.0.0 gestartet – [cpu] nct6798/pwm2 nach coretemp/temp1
+cpu-fancontrol 1.1.0 gestartet – [cpu] nct6798/pwm2 nach coretemp/temp1
+Weboberfläche auf http://127.0.0.1:8077/fan/
 [cpu] 48.0 °C → Lüfter 33 % (1027 U/min)
 [cpu] 75.0 °C → Lüfter 85 % (1391 U/min)
 Warnung: [cpu] Kritische Temperatur 90.0 °C – Lüfter auf 100 %
 ```
+
+## 6. Weboberfläche
+
+Die Oberfläche zeigt für jeden Lüfter:
+
+- CPU-Temperatur, Lüfterleistung und Drehzahl live, dazu einen Status (Normal, kritische Temperatur,
+  Sensorfehler, Lüfter steht)
+- den Verlauf von Temperatur und Lüfter über 5, 15 oder 60 Minuten. Fährst du mit der Maus über den Verlauf,
+  siehst du die genauen Werte; alternativ gibt es eine Tabellenansicht.
+- die **Kennlinie** mit dem aktuellen Betriebspunkt. Die Punkte kannst du mit der Maus ziehen oder in der
+  Tabelle eintippen; außerdem lassen sich alle Einstellungen (Mindestdrehzahl, Hysterese, kritische
+  Temperatur …) ändern. **Speichern** prüft die Werte, schreibt sie in `/etc/cpu-fancontrol.conf` und der
+  Dienst übernimmt sie sofort, ohne Neustart. Kommentare in der Datei bleiben erhalten.
+
+PWM-Ausgang und Sensoren lassen sich aus Sicherheitsgründen nur in der Konfigurationsdatei ändern.
+
+### So wird sie unter `/fan` erreichbar
+
+Der Dienst enthält einen kleinen Webserver, der nur lokal auf `127.0.0.1:8077` lauscht. Der Webserver,
+der den KC-Manager ausliefert, leitet `/fan/` dorthin weiter. Die Oberfläche ist dann unter der
+gewohnten Adresse plus `/fan` erreichbar, z.B. `http://192.168.1.10/fan/`, ohne den KC-Manager selbst
+zu verändern.
+
+**Apache:** `install.sh` erledigt das auf Nachfrage automatisch. Von Hand:
+
+```bash
+sudo cp web/apache-cpu-fancontrol.conf /etc/apache2/conf-available/cpu-fancontrol.conf
+sudo a2enmod proxy proxy_http
+sudo a2enconf cpu-fancontrol
+sudo systemctl reload apache2
+```
+
+Leitet der KC-Manager-VirtualHost selbst alles per `ProxyPass / …` weiter, muss die Zeile
+`ProxyPass /fan/ http://127.0.0.1:8077/fan/` **vor** dieser Regel im VirtualHost stehen.
+
+**nginx:** `install.sh` legt `/etc/nginx/snippets/cpu-fancontrol.conf` an. Füge im `server { }`-Block
+der KC-Manager-Seite (meist in `/etc/nginx/sites-enabled/`) diese Zeile hinzu:
+
+```nginx
+include snippets/cpu-fancontrol.conf;
+```
+
+Danach `sudo nginx -t && sudo systemctl reload nginx`.
+
+**Anderer Proxy (Caddy, Nginx Proxy Manager, Traefik …):** Den Pfad `/fan/*` an `http://127.0.0.1:8077`
+weiterleiten, ohne den Pfad zu kürzen. Läuft der Proxy in Docker, ist `127.0.0.1` der Container selbst.
+Dann in `/etc/cpu-fancontrol.conf` `listen = 0.0.0.0` setzen und die IP des Servers als Ziel eintragen.
+
+**Ohne Proxy:** Mit `listen = 0.0.0.0` ist die Oberfläche direkt unter `http://<server>:8077/fan/` erreichbar.
+
+### Einstellungen (`[web]`)
+
+| Option | Standard | Bedeutung |
+|---|---|---|
+| `enabled` | `no` (Beispielkonfiguration: `yes`) | Weboberfläche ein/aus |
+| `listen` | `127.0.0.1` | Adresse des eingebauten Webservers (`0.0.0.0` = im ganzen Netz) |
+| `port` | `8077` | Port des eingebauten Webservers |
+| `path` | `/fan` | Unterordner der Oberfläche |
+| `password_hash` | – | Passwortschutz, wird mit `sudo cpu-fancontrol passwd` gesetzt |
+
+Nach Änderungen an `port` oder `path` die Proxy-Konfiguration entsprechend anpassen.
+
+### Passwort
+
+Wer die Seite erreicht, kann die Lüftereinstellungen ändern. Ist sie im Netz erreichbar, setze ein Passwort:
+
+```bash
+sudo cpu-fancontrol passwd            # Passwort setzen (Benutzername bei der Anmeldung beliebig)
+sudo cpu-fancontrol passwd --remove   # Passwort entfernen
+sudo systemctl restart cpu-fancontrol
+```
+
+Gespeichert wird nur ein gesalzener Hash (PBKDF2). Das Passwort wird per HTTP-Basic-Auth übertragen. Ist
+der KC-Manager über HTTPS erreichbar, ist auch `/fan` verschlüsselt; bei reinem HTTP solltest du die Seite
+nur im eigenen Netz nutzen.
 
 ## Sicherheit
 
@@ -175,6 +259,9 @@ Warnung: [cpu] Kritische Temperatur 90.0 °C – Lüfter auf 100 %
 - Stellt etwas anderes (z.B. das BIOS nach dem Aufwachen aus dem Standby) die Betriebsart um, übernimmt
   der Dienst sie wieder und schreibt eine Warnung ins Log.
 - Ein Lock verhindert, dass zwei Instanzen oder `test` und der Dienst gleichzeitig dieselben Lüfter steuern.
+- Die Weboberfläche ist ein Zusatz: Startet sie nicht (z.B. weil der Port belegt ist), regelt der Dienst die
+  Lüfter trotzdem. Werte aus der Oberfläche werden vor dem Speichern genauso geprüft wie die Datei; die
+  Notabschaltung über `critical_temp` (höchstens 120 °C) bleibt immer aktiv.
 - Läuft auch der Dienst `fancontrol` aus dem Paket `fancontrol`, warnt das Installationsskript, denn beide
   würden dieselben Lüfter steuern.
 
@@ -188,6 +275,9 @@ Warnung: [cpu] Kritische Temperatur 90.0 °C – Lüfter auf 100 %
 | Log meldet „0 U/min“ | `min_pwm` und `start_pwm` erhöhen (Werte aus `test` übernehmen) oder den Lüfter prüfen |
 | `Chip 'xyz' nicht gefunden` | Name mit `cpu-fancontrol list` vergleichen. Bei zwei gleichnamigen Chips (z.B. Dual-CPU) die Geräte-ID verwenden, z.B. `coretemp.1/temp1` |
 | Dienst startet nicht | `journalctl -u cpu-fancontrol -b` lesen. Konfigurationsfehler (Exit-Code 2) führen zu keinem automatischen Neustart |
+| `/fan` zeigt den KC-Manager oder „404“ | Proxy-Regel fehlt oder kommt zu spät, siehe [Weboberfläche](#6-weboberfläche). Test direkt auf dem Server: `curl http://127.0.0.1:8077/fan/api/status` |
+| `/fan` meldet „502 Bad Gateway“ | Der Dienst läuft nicht oder `[web] enabled` steht auf `no`: `systemctl status cpu-fancontrol` |
+| Oberfläche zeigt „Keine Verbindung“ | Dienst wurde beendet oder neu gestartet. Die Seite verbindet sich automatisch wieder |
 
 ## Deinstallieren
 
@@ -195,7 +285,8 @@ Warnung: [cpu] Kritische Temperatur 90.0 °C – Lüfter auf 100 %
 sudo ./install.sh uninstall
 ```
 
-Der Dienst wird gestoppt, die Lüfter gehen zurück an das Mainboard. `/etc/cpu-fancontrol.conf` bleibt erhalten.
+Der Dienst wird gestoppt, die Lüfter gehen zurück an das Mainboard und die Apache-Einbindung wird
+entfernt. `/etc/cpu-fancontrol.conf` bleibt erhalten. Eine nginx-`include`-Zeile musst du selbst entfernen.
 
 ## Tests
 

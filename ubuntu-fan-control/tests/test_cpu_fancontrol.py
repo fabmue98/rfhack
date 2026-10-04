@@ -3,13 +3,17 @@
 Ausführen im Ordner ubuntu-fan-control:  python3 -m unittest discover -s tests -v
 """
 
+import base64
+import http.client
 import importlib.machinery
 import importlib.util
+import json
 import os
 import signal
 import subprocess
 import sys
 import tempfile
+import threading
 import time
 import unittest
 from pathlib import Path
@@ -124,6 +128,43 @@ class ConfigTest(SysfsTestCase):
     def test_missing_file(self):
         with self.assertRaises(fc.FanControlError):
             fc.load_config(self.dir / "fehlt.conf")
+
+    def test_web_section(self):
+        fan = "[fan:cpu]\npwm = a/pwm1\nsensors = auto\n"
+        self.assertFalse(self.load(fan).web.enabled)
+        web = self.load("[web]\nenabled = ja\nport = 9000\npath = /tools/fan/\n" + fan).web
+        self.assertEqual((web.enabled, web.port, web.path, web.listen), (True, 9000, "/tools/fan", "127.0.0.1"))
+        self.assertEqual(self.load("[web]\npath = /\n" + fan).web.path, "")
+        for text in ("[web]\nenabled = vielleicht\n", "[web]\nport = 70000\n", "[web]\npath = /f an\n",
+                     "[web]\npassword_hash = geheim\n", "[web]\nfoo = 1\n"):
+            with self.subTest(text=text), self.assertRaises(fc.FanControlError):
+                self.load(text + fan)
+
+
+class ConfigFileTest(SysfsTestCase):
+    def test_update_keeps_comments_and_layout(self):
+        path = self.dir / "c.conf"
+        path.write_text("# Kopf\n[general]\ninterval = 2\n\n[fan: cpu]\n# Kommentar\nmin_pwm = 20  # Hinweis\n"
+                        "curve = 40:25,\n    60:60\n#fan = x\n\n# Ende\n")
+        fc.update_config_file(path, "fan:cpu", {"min_pwm": "25", "curve": "40:30, 60:60", "hysteresis": "4"})
+        self.assertEqual(path.read_text(), "# Kopf\n[general]\ninterval = 2\n\n[fan: cpu]\n# Kommentar\n"
+                                           "min_pwm = 25  # Hinweis\ncurve = 40:30, 60:60\nhysteresis = 4\n"
+                                           "#fan = x\n\n# Ende\n")
+
+    def test_update_creates_section_and_removes_option(self):
+        path = self.dir / "c.conf"
+        path.write_text("[general]\ninterval = 2\n")
+        fc.update_config_file(path, "web", {"password_hash": "abc"})
+        self.assertEqual(path.read_text(), "[general]\ninterval = 2\n\n[web]\npassword_hash = abc\n")
+        fc.update_config_file(path, "web", {"password_hash": None})
+        self.assertEqual(path.read_text(), "[general]\ninterval = 2\n\n[web]\n")
+
+    def test_password_hash(self):
+        stored = fc.hash_password("geheim123")
+        self.assertRegex(stored, fc.PASSWORD_HASH_RE)
+        self.assertTrue(fc.check_password("geheim123", stored))
+        self.assertFalse(fc.check_password("geheim124", stored))
+        self.assertFalse(fc.check_password("geheim123", "kaputt"))
 
 
 class DiscoveryTest(SysfsTestCase):
@@ -300,6 +341,113 @@ class ControllerTest(BoardTestCase):
         self.addCleanup(os.close, fd)
         with self.assertRaises(fc.FanControlError):
             fc.acquire_lock(self.state)
+
+
+class WebTest(BoardTestCase):
+    """Weboberfläche: eingebauter Server auf einem freien Port."""
+
+    def setUp(self):
+        super().setUp()
+        self.config_path = self.dir / "web.conf"
+        self.config_path.write_text("# Testkonfiguration\n" + CONFIG.format(curve="40:20, 60:60, 80:100")
+                                    + "\n[web]\nenabled = yes\n")
+        self.temp(50)
+        config = fc.load_config(self.config_path)
+        config.web.port = 0
+        self.controllers = fc.build_controllers(config, fc.discover_chips(self.sys.root))
+        for controller in self.controllers:
+            controller.step(dry_run=True)
+        self.app = fc.App(config, self.controllers, str(self.config_path))
+        self.server = fc.WebServer(self.app)
+        threading.Thread(target=self.server.serve_forever, daemon=True).start()
+        self.addCleanup(self.server.server_close)
+        self.addCleanup(self.server.shutdown)
+
+    def request(self, method, path, body=None, headers=None):
+        conn = http.client.HTTPConnection("127.0.0.1", self.server.server_address[1], timeout=10)
+        if isinstance(body, dict):
+            body = json.dumps(body)
+            headers = {"Content-Type": "application/json", **(headers or {})}
+        conn.request(method, path, body=body, headers=headers or {})
+        res = conn.getresponse()
+        data = res.read()
+        conn.close()
+        return res, data
+
+    def test_page_and_redirect(self):
+        res, _ = self.request("GET", "/fan")
+        self.assertEqual((res.status, res.getheader("Location")), (301, "/fan/"))
+        for path in ("/fan/", "/"):  # mit und ohne Basispfad (Proxy schneidet ihn ggf. ab)
+            res, data = self.request("GET", path)
+            self.assertEqual(res.status, 200, path)
+            self.assertIn("<title>Lüftersteuerung</title>", data.decode())
+            self.assertIn("frame-ancestors 'self'", res.getheader("Content-Security-Policy"))
+        res, _ = self.request("GET", "/fan/gibtsnicht")
+        self.assertEqual(res.status, 404)
+
+    def test_status(self):
+        res, data = self.request("GET", "/fan/api/status")
+        status = json.loads(data)
+        fan = status["fans"][0]
+        self.assertEqual((fan["name"], fan["temp"], fan["percent"], fan["state"]), ("cpu", 50.0, 40.0, "ok"))
+        self.assertEqual(fan["settings"]["curve"], [[40, 20], [60, 60], [80, 100]])
+        self.assertEqual(len(fan["samples"]), 1)
+        self.assertEqual(status["limits"]["critical_temp"], [40, 120])
+        res, data = self.request("GET", f"/fan/api/status?since={fan['samples'][-1][0]}")
+        self.assertEqual(json.loads(data)["fans"][0]["samples"], [])
+
+    def test_settings_are_saved_and_applied(self):
+        with self.assertLogs(fc.log, "INFO"):
+            res, data = self.request("POST", "/fan/api/settings",
+                                     {"fan": "cpu", "min_pwm": 30, "curve": [[40, 20], [60, 70], [80, 100]],
+                                      "critical_temp": 90})
+        self.assertEqual(res.status, 200, data)
+        self.assertEqual(json.loads(data)["fan"]["settings"]["min_pwm"], 30)
+        cfg = self.controllers[0].cfg
+        self.assertEqual((cfg.min_pwm, cfg.curve[1]), (30, (60.0, 70.0)))
+        text = self.config_path.read_text()
+        self.assertIn("min_pwm = 30\n", text)
+        self.assertIn("curve = 40:20, 60:70, 80:100\n", text)
+        self.assertIn("critical_temp = 90\n", text)        # unverändert, keine doppelte Zeile
+        self.assertEqual(text.count("critical_temp"), 1)
+        self.assertTrue(text.startswith("# Testkonfiguration\n"))
+
+    def test_invalid_settings_are_rejected(self):
+        before = self.config_path.read_text()
+        cases = [
+            ({"fan": "cpu", "critical_temp": 150}, 400, "critical_temp"),
+            ({"fan": "cpu", "curve": [[60, 20], [40, 30]]}, 400, "aufsteigend"),
+            ({"fan": "cpu", "curve": [[40, 20], [60, 10]]}, 400, "nicht sinken"),
+            ({"fan": "cpu", "average": 2.5}, 400, "ganze Zahl"),
+            ({"fan": "cpu", "min_pwm": "20"}, 400, "Zahl"),
+            ({"fan": "gpu", "min_pwm": 20}, 400, "Unbekannter Lüfter"),
+        ]
+        for body, code, message in cases:
+            with self.subTest(body=body):
+                res, data = self.request("POST", "/fan/api/settings", body)
+                self.assertEqual(res.status, code)
+                self.assertIn(message, json.loads(data)["error"])
+        res, _ = self.request("POST", "/fan/api/settings", "min_pwm=0", {"Content-Type": "text/plain"})
+        self.assertEqual(res.status, 415)
+        self.assertEqual(self.config_path.read_text(), before)
+        self.assertEqual(self.controllers[0].cfg.min_pwm, 25)
+
+    def test_password(self):
+        self.app.config.web.password_hash = fc.hash_password("geheim123")
+        res, _ = self.request("GET", "/fan/api/status")
+        self.assertEqual(res.status, 401)
+        self.assertIn("Basic", res.getheader("WWW-Authenticate"))
+
+        def auth(password):
+            return {"Authorization": "Basic " + base64.b64encode(f"admin:{password}".encode()).decode()}
+
+        with self.assertLogs(fc.log, "WARNING"):
+            res, _ = self.request("GET", "/fan/api/status", headers=auth("falsch"))
+        self.assertEqual(res.status, 401)
+        res, _ = self.request("GET", "/fan/api/status", headers=auth("geheim123"))
+        self.assertEqual(res.status, 200)
+        res, _ = self.request("POST", "/fan/api/settings", {"fan": "cpu", "min_pwm": 30})
+        self.assertEqual(res.status, 401)
 
 
 class CommandLineTest(BoardTestCase):

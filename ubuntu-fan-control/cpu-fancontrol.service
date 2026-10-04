@@ -1,7 +1,7 @@
 [Unit]
 Description=CPU-Lüftersteuerung (cpu-fancontrol)
 # Sensortreiber (z.B. nct6775, it87) müssen vorher geladen sein
-After=systemd-modules-load.service lm-sensors.service
+After=systemd-modules-load.service lm-sensors.service network.target
 
 [Service]
 Type=simple
@@ -13,12 +13,14 @@ RestartSec=5
 # Exit-Code 2 = Konfigurationsfehler: nicht endlos neu starten
 RestartPreventExitStatus=2
 
-# Härtung (Schreibzugriff auf /sys und /run wird weiterhin benötigt)
+# Härtung. Benötigt werden weiterhin: Schreibzugriff auf /sys (Lüfter), /run
+# (Statusdatei) und /etc/cpu-fancontrol.conf (Speichern aus der Weboberfläche)
+# sowie ein lokaler TCP-Port für die Weboberfläche.
 NoNewPrivileges=yes
-ProtectSystem=full
+ProtectSystem=yes
 ProtectHome=yes
 PrivateTmp=yes
-PrivateNetwork=yes
+RestrictAddressFamilies=AF_UNIX AF_INET AF_INET6
 
 [Install]
 WantedBy=multi-user.target
