@@ -1,0 +1,165 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">Arbeitszeit</string>
+    <string name="footer">Arbeitszeit 1.3 • Daten werden lokal auf dem Gerät gespeichert.</string>
+
+    <!-- Allgemein -->
+    <string name="cancel">Abbrechen</string>
+    <string name="save">Speichern</string>
+    <string name="change">Ändern</string>
+    <string name="edit">Ändern</string>
+    <string name="delete">Löschen</string>
+    <string name="restore">Wiederherstellen</string>
+    <string name="undo">Rückgängig</string>
+    <string name="running">läuft</string>
+    <string name="per_hour">%1$s / h</string>
+
+    <!-- Tabs / Untertitel -->
+    <string name="tab_today">Heute</string>
+    <string name="tab_overview">Übersicht</string>
+    <string name="subtitle_overview">Tage, Lohn und Zahlungsstatus</string>
+    <string name="subtitle_detail">Tagesübersicht bearbeiten</string>
+    <string name="back_overview">← Übersicht</string>
+    <string name="today_date">Heute, %1$s</string>
+
+    <!-- Platzhalter -->
+    <string name="placeholder_time">00:00:00</string>
+    <string name="placeholder_wage">0,00 € / h</string>
+    <string name="placeholder_summary">0:00 h • 0,00 €</string>
+    <string name="placeholder_money">0,00 €</string>
+
+    <!-- Heute -->
+    <string name="status_working">● Arbeitszeit läuft</string>
+    <string name="status_paused">● Pause läuft</string>
+    <string name="status_not_started">Noch nicht gestartet</string>
+    <string name="status_stopped">Gestoppt – Fortsetzen möglich</string>
+    <string name="status_stopped_short">Gestoppt</string>
+    <string name="label_paid_time_today">Bezahlte Arbeitszeit heute</string>
+    <string name="label_break">Pause</string>
+    <string name="label_wage_today">Lohn heute</string>
+    <string name="label_default_wage">Standard-Stundenlohn</string>
+    <string name="label_note">Notiz</string>
+    <string name="note_button">Notiz</string>
+    <string name="note_none">Keine Notiz</string>
+    <string name="start">Start</string>
+    <string name="resume">Fortsetzen</string>
+    <string name="pause">Pause</string>
+    <string name="pause_end">Pause beenden</string>
+    <string name="stop">Stop</string>
+    <string name="heading_work_today">Arbeitsblöcke heute</string>
+    <string name="heading_breaks_today">Pausen heute</string>
+    <string name="hint_work_blocks">Ein Arbeitsblock darf Pausen enthalten. Pausen werden automatisch von der Arbeitszeit abgezogen.</string>
+    <string name="add_work_manual">+ Arbeitszeit manuell hinzufügen</string>
+    <string name="add_break_manual">+ Pause manuell hinzufügen</string>
+    <string name="toast_start_first">Starte zuerst die Arbeitszeit.</string>
+    <string name="dialog_stop_title">Arbeitszeit stoppen?</string>
+    <string name="dialog_stop_message">Der laufende Arbeitsblock wird beendet. Du kannst später mit „Fortsetzen“ weitermachen.</string>
+
+    <!-- Übersicht -->
+    <string name="prev_symbol">‹</string>
+    <string name="next_symbol">›</string>
+    <string name="prev_month">Vorheriger Monat</string>
+    <string name="next_month">Nächster Monat</string>
+    <string name="label_this_week">Diese Woche</string>
+    <string name="label_month">Monat</string>
+    <string name="label_open_total">Noch offen (alle Monate)</string>
+    <string name="month_open">Davon offen: %1$s</string>
+    <string name="mark_month_paid">Alle offenen Tage dieses Monats als bezahlt markieren</string>
+    <string name="add_past_day">+ Vergessenen Arbeitstag eintragen</string>
+    <string name="heading_days">Arbeitstage</string>
+    <string name="hint_days">Tippe auf einen Tag, um Zeiten, Stundenlohn, Notiz und Bezahlt-Status zu ändern.</string>
+    <string name="empty_month">Keine Arbeitstage in diesem Monat.</string>
+    <string name="badge_paid">✓ Bezahlt</string>
+    <string name="badge_open">● Offen</string>
+    <string name="row_work_break">%1$s Arbeit  •  %2$s Pause</string>
+    <string name="toast_nothing_open">Keine offenen, gestoppten Tage in diesem Monat.</string>
+    <string name="dialog_mark_month_title">Monat als bezahlt markieren?</string>
+    <string name="dialog_mark_month_message">%1$d offene Tage im %2$s werden als bezahlt markiert. Summe: %3$s</string>
+    <string name="mark_paid">Als bezahlt markieren</string>
+    <string name="dialog_pick_day">Arbeitstag auswählen</string>
+
+    <!-- Export / Backup -->
+    <string name="heading_export">Export und Backup</string>
+    <string name="hint_export">Der CSV-Export enthält den oben gewählten Monat (für Excel/LibreOffice). Das Backup enthält alle Tage und den Standardlohn.</string>
+    <string name="export_csv">Monat als CSV exportieren</string>
+    <string name="backup_save">Backup speichern</string>
+    <string name="backup_restore">Backup laden</string>
+    <string name="toast_no_data_month">Für diesen Monat gibt es nichts zu exportieren.</string>
+    <string name="toast_no_file_picker">Keine App zur Dateiauswahl gefunden.</string>
+    <string name="toast_csv_saved">CSV gespeichert.</string>
+    <string name="toast_backup_saved">Backup gespeichert.</string>
+    <string name="toast_backup_restored">Backup wiederhergestellt.</string>
+    <string name="toast_backup_invalid">Das ist keine gültige Backup-Datei.</string>
+    <string name="toast_file_error">Datei konnte nicht geschrieben werden.</string>
+    <string name="dialog_restore_title">Backup wiederherstellen?</string>
+    <string name="dialog_restore_message">Die Datei enthält %1$d Arbeitstage. Alle aktuell gespeicherten Daten werden dadurch ersetzt. Das kann nicht rückgängig gemacht werden.</string>
+
+    <!-- Detail -->
+    <string name="detail_open">● Noch offen</string>
+    <string name="detail_paid_on">✓ Bezahlt am %1$s</string>
+    <string name="detail_stop_first">Erst Arbeitszeit stoppen</string>
+    <string name="mark_open">Als offen markieren</string>
+    <string name="label_work_time">Arbeitszeit</string>
+    <string name="label_wage">Lohn</string>
+    <string name="label_rate_that_day">Stundenlohn an dem Tag</string>
+    <string name="change_wage">Lohn ändern</string>
+    <string name="heading_work_blocks">Arbeitsblöcke</string>
+    <string name="heading_breaks">Pausen</string>
+    <string name="hint_breaks">Pausen dürfen innerhalb eines Arbeitsblocks liegen und werden automatisch abgezogen.</string>
+    <string name="add_work">+ Arbeitszeit hinzufügen</string>
+    <string name="add_break">+ Pause hinzufügen</string>
+
+    <!-- Einträge -->
+    <string name="entry_work_n">Arbeit %1$d</string>
+    <string name="entry_break_n">Pause %1$d</string>
+    <string name="empty_work">Noch keine Arbeitszeit erfasst.</string>
+    <string name="empty_break">Noch keine Pause erfasst.</string>
+    <string name="undo_work_deleted">Arbeitsblock gelöscht</string>
+    <string name="undo_break_deleted">Pause gelöscht</string>
+    <string name="toast_undo_not_possible">Rückgängig nicht mehr möglich, da seither etwas geändert wurde.</string>
+
+    <!-- Zeit-Dialog -->
+    <string name="dialog_add_work">Zeit hinzufügen – Arbeit</string>
+    <string name="dialog_edit_work">Zeit ändern – Arbeit</string>
+    <string name="dialog_add_break">Zeit hinzufügen – Pause</string>
+    <string name="dialog_edit_break">Zeit ändern – Pause</string>
+    <string name="field_start">Start</string>
+    <string name="field_end">Ende</string>
+    <string name="time_hint">HH:mm</string>
+    <string name="hint_work_active">Der Arbeitsblock läuft. Du kannst den Start korrigieren.</string>
+    <string name="hint_work_edit">Start und Ende am %1$s. Pausen innerhalb des Blocks werden automatisch abgezogen.</string>
+    <string name="hint_work_add">Start und Ende am %1$s. Liegt das Ende vor dem Start, läuft die Zeit über Mitternacht und wird automatisch auf zwei Tage aufgeteilt. Pausen innerhalb des Blocks werden automatisch abgezogen.</string>
+    <string name="hint_break_active">Die Pause läuft. Du kannst den Start korrigieren.</string>
+    <string name="hint_break_edit">Die Pause muss innerhalb einer erfassten Arbeitszeit liegen und wird automatisch abgezogen.</string>
+    <string name="hint_break_add">Die Pause muss innerhalb einer erfassten Arbeitszeit liegen und wird automatisch abgezogen. Liegt das Ende vor dem Start, läuft sie über Mitternacht.</string>
+    <string name="error_start_format">Format HH:mm, z. B. 08:15</string>
+    <string name="error_end_format">Format HH:mm, z. B. 16:30</string>
+    <string name="error_start_future">Start darf nicht in der Zukunft liegen.</string>
+    <string name="error_end_future">Ende darf nicht in der Zukunft liegen.</string>
+    <string name="error_end_before_start">Ende muss nach dem Start liegen.</string>
+    <string name="error_work_overlap">Diese Arbeitszeit überschneidet sich mit einem anderen Arbeitsblock.</string>
+    <string name="error_break_overlap">Diese Pause überschneidet sich mit einer anderen Pause.</string>
+    <string name="error_break_not_covered">Die Pause muss innerhalb einer erfassten Arbeitszeit liegen.</string>
+
+    <!-- Lohn-Dialog -->
+    <string name="dialog_default_wage_title">Standard-Stundenlohn ändern</string>
+    <string name="dialog_day_wage_title">Stundenlohn für %1$s</string>
+    <string name="wage_dialog_hint">Stundenlohn in Euro. Komma oder Punkt ist möglich.</string>
+    <string name="wage_hint">z. B. 15,50</string>
+    <string name="error_wage_invalid">Bitte einen gültigen Stundenlohn eingeben.</string>
+    <string name="error_number_invalid">Ungültige Zahl</string>
+
+    <!-- Notiz-Dialog -->
+    <string name="note_title">Notiz</string>
+    <string name="note_dialog_hint">Notiz für %1$s (z. B. Kunde, Projekt, Ort).</string>
+    <string name="note_hint">Notiz eingeben</string>
+
+    <!-- Widget -->
+    <string name="widget_label">Arbeitszeit</string>
+    <string name="widget_description">Heutige Arbeitszeit und Verdienst mit Start, Pause und Stop.</string>
+    <string name="widget_start">▶ Start</string>
+    <string name="widget_resume">▶ Weiter</string>
+    <string name="widget_pause">❚❚ Pause</string>
+    <string name="widget_stop">■ Stop</string>
+    <string name="widget_break">Pause %1$s</string>
+</resources>

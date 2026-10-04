@@ -1,0 +1,29 @@
+{
+  "format": 1,
+  "kind": "project",
+  "name": "Arbeitszeit",
+  "description": "",
+  "author": "",
+  "createdBy": "CodeAssist",
+  "exportedAt": 1790727919755,
+  "isAndroid": true,
+  "packageName": "de.kalkoen.arbeitszeit",
+  "moduleCount": 1,
+  "modules": [
+    "app"
+  ],
+  "moduleInfos": [
+    {
+      "name": "app",
+      "path": "app",
+      "type": "android-app",
+      "files": 14,
+      "size": 87522
+    }
+  ],
+  "fileCount": 23,
+  "uncompressedSize": 91334,
+  "hasBundledDeps": true,
+  "iconEntry": null,
+  "store": null
+}
