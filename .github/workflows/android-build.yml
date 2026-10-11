@@ -58,7 +58,7 @@ jobs:
           fi
 
       - name: Run unit tests
-        run: ./gradlew --no-daemon --stacktrace :app:testDebugUnitTest
+        run: ./gradlew --no-daemon :app:testDebugUnitTest
 
       - name: Build debug APK, release APK and release AAB
         env:
@@ -67,7 +67,7 @@ jobs:
           ANDROID_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
           ANDROID_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
         run: |
-          ./gradlew --no-daemon --stacktrace \
+          ./gradlew --no-daemon \
             :app:assembleDebug \
             :app:assembleRelease \
             :app:bundleRelease \
