@@ -82,6 +82,17 @@ android {
     }
 }
 
+// Keep the Kotlin standard library aligned with this module's Kotlin version.
+// Some newer Google libraries request a newer stdlib whose metadata this
+// compiler cannot read; pin it back so compilation stays consistent.
+configurations.all {
+    resolutionStrategy {
+        force("org.jetbrains.kotlin:kotlin-stdlib:2.0.21")
+        force("org.jetbrains.kotlin:kotlin-stdlib-jdk8:2.0.21")
+        force("org.jetbrains.kotlin:kotlin-stdlib-jdk7:2.0.21")
+    }
+}
+
 dependencies {
     val composeBom = platform("androidx.compose:compose-bom:2024.12.01")
     implementation(composeBom)
@@ -107,7 +118,10 @@ dependencies {
 
     implementation("androidx.datastore:datastore-preferences:1.1.1")
 
-    implementation("com.android.billingclient:billing-ktx:9.1.0")
+    // Use the plain Java Billing artifact (not -ktx): the ktx artifact carries
+    // Kotlin metadata compiled with a newer Kotlin than this module uses, which
+    // breaks compilation. The callback API we use lives in the base artifact.
+    implementation("com.android.billingclient:billing:9.1.0")
 
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-android:1.9.0")
 
