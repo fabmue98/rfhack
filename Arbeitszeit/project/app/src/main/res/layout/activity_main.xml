@@ -1,0 +1,794 @@
+<?xml version="1.0" encoding="utf-8"?>
+<FrameLayout
+    xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="@color/bg"
+    android:fitsSystemWindows="true">
+    <ScrollView
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:fillViewport="true">
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="vertical"
+            android:paddingLeft="16dp"
+            android:paddingTop="18dp"
+            android:paddingRight="16dp"
+            android:paddingBottom="96dp">
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="@string/app_name"
+                android:textColor="@color/text"
+                android:textSize="28sp"
+                android:textStyle="bold" />
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:id="@+id/tvTopSubtitle"
+                android:layout_marginTop="2dp"
+                android:textColor="@color/muted"
+                android:textSize="14sp" />
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="horizontal"
+                android:layout_marginTop="14dp">
+                <Button
+                    android:id="@+id/btnTabToday"
+                    android:layout_width="0dp"
+                    android:layout_height="48dp"
+                    android:layout_weight="1"
+                    android:background="@drawable/tab_selected"
+                    android:text="@string/tab_today"
+                    android:textAllCaps="false"
+                    android:textColor="@color/on_accent"
+                    android:textStyle="bold" />
+                <Space android:layout_width="8dp" android:layout_height="1dp"/>
+                <Button
+                    android:id="@+id/btnTabOverview"
+                    android:layout_width="0dp"
+                    android:layout_height="48dp"
+                    android:layout_weight="1"
+                    android:background="@drawable/btn_neutral"
+                    android:text="@string/tab_overview"
+                    android:textAllCaps="false"
+                    android:textColor="@color/text"
+                    android:textStyle="bold" />
+            </LinearLayout>
+            <LinearLayout
+                android:id="@+id/todaySection"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="vertical">
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="vertical"
+                    android:background="@drawable/card_bg"
+                    android:layout_marginTop="16dp">
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:id="@+id/tvStatus"
+                        android:text="@string/status_stopped"
+                        android:textColor="@color/muted"
+                        android:textSize="15sp"
+                        android:textStyle="bold" />
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="10dp"
+                        android:text="@string/label_paid_time_today"
+                        android:textColor="@color/muted"
+                        android:textSize="14sp" />
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:id="@+id/tvWorked"
+                        android:text="@string/placeholder_time"
+                        android:textColor="@color/text"
+                        android:textSize="40sp"
+                        android:textStyle="bold" />
+                    <LinearLayout
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:orientation="horizontal"
+                        android:layout_marginTop="12dp">
+                        <LinearLayout
+                            android:layout_width="0dp"
+                            android:layout_height="wrap_content"
+                            android:orientation="vertical"
+                            android:layout_weight="1">
+                            <TextView
+                                android:layout_width="wrap_content"
+                                android:layout_height="wrap_content"
+                                android:text="@string/label_break"
+                                android:textColor="@color/muted"
+                                android:textSize="13sp" />
+                            <TextView
+                                android:layout_width="wrap_content"
+                                android:layout_height="wrap_content"
+                                android:id="@+id/tvBreak"
+                                android:textColor="@color/text"
+                                android:textSize="20sp"
+                                android:textStyle="bold" />
+                        </LinearLayout>
+                        <LinearLayout
+                            android:layout_width="0dp"
+                            android:layout_height="wrap_content"
+                            android:orientation="vertical"
+                            android:layout_weight="1">
+                            <TextView
+                                android:layout_width="wrap_content"
+                                android:layout_height="wrap_content"
+                                android:text="@string/label_wage_today"
+                                android:textColor="@color/muted"
+                                android:textSize="13sp" />
+                            <TextView
+                                android:layout_width="wrap_content"
+                                android:layout_height="wrap_content"
+                                android:id="@+id/tvWageToday"
+                                android:textColor="@color/green"
+                                android:textSize="20sp"
+                                android:textStyle="bold" />
+                        </LinearLayout>
+                    </LinearLayout>
+                </LinearLayout>
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="horizontal"
+                    android:layout_marginTop="14dp">
+                    <Button
+                        android:id="@+id/btnStart"
+                        android:layout_width="0dp"
+                        android:layout_height="56dp"
+                        android:layout_weight="1"
+                        android:background="@drawable/btn_primary"
+                        android:text="@string/start"
+                        android:textAllCaps="false"
+                        android:textColor="@color/on_accent"
+                        android:textSize="16sp"
+                        android:textStyle="bold" />
+                    <Space android:layout_width="8dp" android:layout_height="1dp"/>
+                    <Button
+                        android:id="@+id/btnPause"
+                        android:layout_width="0dp"
+                        android:layout_height="56dp"
+                        android:layout_weight="1"
+                        android:background="@drawable/btn_neutral"
+                        android:text="@string/pause"
+                        android:textAllCaps="false"
+                        android:textColor="@color/text"
+                        android:textSize="16sp"
+                        android:textStyle="bold" />
+                    <Space android:layout_width="8dp" android:layout_height="1dp"/>
+                    <Button
+                        android:id="@+id/btnStop"
+                        android:layout_width="0dp"
+                        android:layout_height="56dp"
+                        android:layout_weight="1"
+                        android:background="@drawable/btn_stop"
+                        android:text="@string/stop"
+                        android:textAllCaps="false"
+                        android:textColor="@color/on_accent"
+                        android:textSize="16sp"
+                        android:textStyle="bold" />
+                </LinearLayout>
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="horizontal"
+                    android:background="@drawable/card_bg"
+                    android:layout_marginTop="16dp"
+                    android:gravity="center_vertical">
+                    <LinearLayout
+                        android:layout_width="0dp"
+                        android:layout_height="wrap_content"
+                        android:orientation="vertical"
+                        android:layout_weight="1">
+                        <TextView
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:text="@string/label_default_wage"
+                            android:textColor="@color/muted"
+                            android:textSize="13sp" />
+                        <TextView
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:id="@+id/tvHourlyWage"
+                            android:text="@string/placeholder_wage"
+                            android:textColor="@color/text"
+                            android:textSize="20sp"
+                            android:textStyle="bold" />
+                    </LinearLayout>
+                    <Button
+                        android:id="@+id/btnEditWage"
+                        android:layout_width="wrap_content"
+                        android:layout_height="48dp"
+                        android:background="@drawable/btn_neutral"
+                        android:text="@string/change"
+                        android:textAllCaps="false"
+                        android:textColor="@color/text" />
+                </LinearLayout>
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="horizontal"
+                    android:background="@drawable/card_bg"
+                    android:layout_marginTop="12dp"
+                    android:gravity="center_vertical">
+                    <LinearLayout
+                        android:layout_width="0dp"
+                        android:layout_height="wrap_content"
+                        android:orientation="vertical"
+                        android:layout_weight="1">
+                        <TextView
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:text="@string/label_note"
+                            android:textColor="@color/muted"
+                            android:textSize="13sp" />
+                        <TextView
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:id="@+id/tvTodayNote"
+                            android:text="@string/note_none"
+                            android:textColor="@color/muted"
+                            android:textSize="15sp" />
+                    </LinearLayout>
+                    <Button
+                        android:id="@+id/btnTodayNote"
+                        android:layout_width="wrap_content"
+                        android:layout_height="48dp"
+                        android:background="@drawable/btn_neutral"
+                        android:text="@string/note_button"
+                        android:textAllCaps="false"
+                        android:textColor="@color/text" />
+                </LinearLayout>
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="22dp"
+                    android:text="@string/heading_work_today"
+                    android:textColor="@color/text"
+                    android:textSize="18sp"
+                    android:textStyle="bold" />
+                <TextView
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="3dp"
+                    android:text="@string/hint_work_blocks"
+                    android:textColor="@color/muted"
+                    android:textSize="13sp" />
+                <LinearLayout
+                    android:id="@+id/workEntriesContainer"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="vertical"
+                    android:layout_marginTop="8dp">
+</LinearLayout>
+                <Button
+                    android:id="@+id/btnAddWork"
+                    android:layout_width="match_parent"
+                    android:layout_height="50dp"
+                    android:layout_marginTop="8dp"
+                    android:background="@drawable/btn_neutral"
+                    android:text="@string/add_work_manual"
+                    android:textAllCaps="false"
+                    android:textColor="@color/text" />
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="22dp"
+                    android:text="@string/heading_breaks_today"
+                    android:textColor="@color/text"
+                    android:textSize="18sp"
+                    android:textStyle="bold" />
+                <LinearLayout
+                    android:id="@+id/breakEntriesContainer"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="vertical"
+                    android:layout_marginTop="8dp">
+</LinearLayout>
+                <Button
+                    android:id="@+id/btnAddBreak"
+                    android:layout_width="match_parent"
+                    android:layout_height="50dp"
+                    android:layout_marginTop="8dp"
+                    android:background="@drawable/btn_neutral"
+                    android:text="@string/add_break_manual"
+                    android:textAllCaps="false"
+                    android:textColor="@color/text" />
+            </LinearLayout>
+            <LinearLayout
+                android:id="@+id/overviewSection"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="vertical"
+                android:visibility="gone">
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="horizontal"
+                    android:layout_marginTop="16dp"
+                    android:gravity="center_vertical">
+                    <Button
+                        android:id="@+id/btnMonthPrev"
+                        android:layout_width="48dp"
+                        android:layout_height="48dp"
+                        android:background="@drawable/btn_neutral"
+                        android:text="@string/prev_symbol"
+                        android:textAllCaps="false"
+                        android:textColor="@color/text"
+                        android:textSize="20sp"
+                        android:textStyle="bold"
+                        android:contentDescription="@string/prev_month" />
+                    <TextView
+                        android:layout_width="0dp"
+                        android:layout_height="wrap_content"
+                        android:id="@+id/tvMonthLabel"
+                        android:textColor="@color/text"
+                        android:textSize="18sp"
+                        android:textStyle="bold"
+                        android:layout_weight="1"
+                        android:gravity="center" />
+                    <Button
+                        android:id="@+id/btnMonthNext"
+                        android:layout_width="48dp"
+                        android:layout_height="48dp"
+                        android:background="@drawable/btn_neutral"
+                        android:text="@string/next_symbol"
+                        android:textAllCaps="false"
+                        android:textColor="@color/text"
+                        android:textSize="20sp"
+                        android:textStyle="bold"
+                        android:contentDescription="@string/next_month" />
+                </LinearLayout>
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="vertical"
+                    android:background="@drawable/card_bg"
+                    android:layout_marginTop="10dp">
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="@string/label_this_week"
+                        android:textColor="@color/muted"
+                        android:textSize="13sp" />
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:id="@+id/tvWeekSummary"
+                        android:text="@string/placeholder_summary"
+                        android:textColor="@color/text"
+                        android:textSize="20sp"
+                        android:textStyle="bold" />
+                    <View
+                        android:layout_width="match_parent"
+                        android:layout_height="1dp"
+                        android:layout_marginTop="12dp"
+                        android:layout_marginBottom="12dp"
+                        android:background="@color/line" />
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="@string/label_month"
+                        android:textColor="@color/muted"
+                        android:textSize="13sp" />
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:id="@+id/tvMonthSummary"
+                        android:text="@string/placeholder_summary"
+                        android:textColor="@color/text"
+                        android:textSize="20sp"
+                        android:textStyle="bold" />
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:id="@+id/tvMonthOpen"
+                        android:layout_marginTop="2dp"
+                        android:textColor="@color/orange"
+                        android:textSize="13sp" />
+                    <View
+                        android:layout_width="match_parent"
+                        android:layout_height="1dp"
+                        android:layout_marginTop="12dp"
+                        android:layout_marginBottom="12dp"
+                        android:background="@color/line" />
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="@string/label_open_total"
+                        android:textColor="@color/muted"
+                        android:textSize="13sp" />
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:id="@+id/tvOpenWage"
+                        android:text="@string/placeholder_money"
+                        android:textColor="@color/orange"
+                        android:textSize="22sp"
+                        android:textStyle="bold" />
+                </LinearLayout>
+                <Button
+                    android:id="@+id/btnMarkMonthPaid"
+                    android:layout_width="match_parent"
+                    android:layout_height="50dp"
+                    android:layout_marginTop="12dp"
+                    android:background="@drawable/btn_primary"
+                    android:text="@string/mark_month_paid"
+                    android:textAllCaps="false"
+                    android:textColor="@color/on_accent" />
+                <Button
+                    android:id="@+id/btnAddPastDay"
+                    android:layout_width="match_parent"
+                    android:layout_height="50dp"
+                    android:layout_marginTop="8dp"
+                    android:background="@drawable/btn_neutral"
+                    android:text="@string/add_past_day"
+                    android:textAllCaps="false"
+                    android:textColor="@color/text" />
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="22dp"
+                    android:text="@string/heading_days"
+                    android:textColor="@color/text"
+                    android:textSize="20sp"
+                    android:textStyle="bold" />
+                <TextView
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="3dp"
+                    android:text="@string/hint_days"
+                    android:textColor="@color/muted"
+                    android:textSize="13sp" />
+                <LinearLayout
+                    android:id="@+id/daysContainer"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="vertical"
+                    android:layout_marginTop="8dp">
+</LinearLayout>
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="22dp"
+                    android:text="@string/heading_export"
+                    android:textColor="@color/text"
+                    android:textSize="20sp"
+                    android:textStyle="bold" />
+                <TextView
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="3dp"
+                    android:text="@string/hint_export"
+                    android:textColor="@color/muted"
+                    android:textSize="13sp" />
+                <Button
+                    android:id="@+id/btnExportCsv"
+                    android:layout_width="match_parent"
+                    android:layout_height="50dp"
+                    android:layout_marginTop="8dp"
+                    android:background="@drawable/btn_neutral"
+                    android:text="@string/export_csv"
+                    android:textAllCaps="false"
+                    android:textColor="@color/text" />
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="horizontal"
+                    android:layout_marginTop="8dp">
+                    <Button
+                        android:id="@+id/btnBackupSave"
+                        android:layout_width="0dp"
+                        android:layout_height="50dp"
+                        android:layout_weight="1"
+                        android:background="@drawable/btn_neutral"
+                        android:text="@string/backup_save"
+                        android:textAllCaps="false"
+                        android:textColor="@color/text" />
+                    <Space android:layout_width="8dp" android:layout_height="1dp"/>
+                    <Button
+                        android:id="@+id/btnBackupRestore"
+                        android:layout_width="0dp"
+                        android:layout_height="50dp"
+                        android:layout_weight="1"
+                        android:background="@drawable/btn_neutral"
+                        android:text="@string/backup_restore"
+                        android:textAllCaps="false"
+                        android:textColor="@color/text" />
+                </LinearLayout>
+            </LinearLayout>
+            <LinearLayout
+                android:id="@+id/detailSection"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="vertical"
+                android:visibility="gone">
+                <Button
+                    android:id="@+id/btnBackOverview"
+                    android:layout_width="wrap_content"
+                    android:layout_height="46dp"
+                    android:layout_marginTop="14dp"
+                    android:background="@drawable/btn_neutral"
+                    android:text="@string/back_overview"
+                    android:textAllCaps="false"
+                    android:textColor="@color/text" />
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:id="@+id/tvDetailDate"
+                    android:layout_marginTop="12dp"
+                    android:text="@string/subtitle_detail"
+                    android:textColor="@color/text"
+                    android:textSize="23sp"
+                    android:textStyle="bold" />
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="vertical"
+                    android:background="@drawable/card_bg"
+                    android:layout_marginTop="10dp">
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:id="@+id/tvDetailPaidStatus"
+                        android:text="@string/detail_open"
+                        android:textColor="@color/orange"
+                        android:textStyle="bold" />
+                    <LinearLayout
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:orientation="horizontal"
+                        android:layout_marginTop="12dp">
+                        <LinearLayout
+                            android:layout_width="0dp"
+                            android:layout_height="wrap_content"
+                            android:orientation="vertical"
+                            android:layout_weight="1">
+                            <TextView
+                                android:layout_width="wrap_content"
+                                android:layout_height="wrap_content"
+                                android:text="@string/label_work_time"
+                                android:textColor="@color/muted"
+                                android:textSize="13sp" />
+                            <TextView
+                                android:layout_width="wrap_content"
+                                android:layout_height="wrap_content"
+                                android:id="@+id/tvDetailWorked"
+                                android:textColor="@color/text"
+                                android:textSize="20sp"
+                                android:textStyle="bold" />
+                        </LinearLayout>
+                        <LinearLayout
+                            android:layout_width="0dp"
+                            android:layout_height="wrap_content"
+                            android:orientation="vertical"
+                            android:layout_weight="1">
+                            <TextView
+                                android:layout_width="wrap_content"
+                                android:layout_height="wrap_content"
+                                android:text="@string/label_break"
+                                android:textColor="@color/muted"
+                                android:textSize="13sp" />
+                            <TextView
+                                android:layout_width="wrap_content"
+                                android:layout_height="wrap_content"
+                                android:id="@+id/tvDetailBreak"
+                                android:textColor="@color/text"
+                                android:textSize="20sp"
+                                android:textStyle="bold" />
+                        </LinearLayout>
+                    </LinearLayout>
+                    <LinearLayout
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:orientation="horizontal"
+                        android:layout_marginTop="12dp">
+                        <LinearLayout
+                            android:layout_width="0dp"
+                            android:layout_height="wrap_content"
+                            android:orientation="vertical"
+                            android:layout_weight="1">
+                            <TextView
+                                android:layout_width="wrap_content"
+                                android:layout_height="wrap_content"
+                                android:text="@string/label_wage"
+                                android:textColor="@color/muted"
+                                android:textSize="13sp" />
+                            <TextView
+                                android:layout_width="wrap_content"
+                                android:layout_height="wrap_content"
+                                android:id="@+id/tvDetailWage"
+                                android:textColor="@color/green"
+                                android:textSize="20sp"
+                                android:textStyle="bold" />
+                        </LinearLayout>
+                        <LinearLayout
+                            android:layout_width="0dp"
+                            android:layout_height="wrap_content"
+                            android:orientation="vertical"
+                            android:layout_weight="1">
+                            <TextView
+                                android:layout_width="wrap_content"
+                                android:layout_height="wrap_content"
+                                android:text="@string/label_rate_that_day"
+                                android:textColor="@color/muted"
+                                android:textSize="13sp" />
+                            <TextView
+                                android:layout_width="wrap_content"
+                                android:layout_height="wrap_content"
+                                android:id="@+id/tvDetailRate"
+                                android:textColor="@color/text"
+                                android:textSize="18sp"
+                                android:textStyle="bold" />
+                        </LinearLayout>
+                    </LinearLayout>
+                </LinearLayout>
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="horizontal"
+                    android:layout_marginTop="10dp">
+                    <Button
+                        android:id="@+id/btnDetailTogglePaid"
+                        android:layout_width="0dp"
+                        android:layout_height="50dp"
+                        android:layout_weight="1"
+                        android:background="@drawable/btn_primary"
+                        android:text="@string/mark_paid"
+                        android:textAllCaps="false"
+                        android:textColor="@color/on_accent" />
+                    <Space android:layout_width="8dp" android:layout_height="1dp"/>
+                    <Button
+                        android:id="@+id/btnDetailEditRate"
+                        android:layout_width="0dp"
+                        android:layout_height="50dp"
+                        android:layout_weight="1"
+                        android:background="@drawable/btn_neutral"
+                        android:text="@string/change_wage"
+                        android:textAllCaps="false"
+                        android:textColor="@color/text" />
+                </LinearLayout>
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="horizontal"
+                    android:background="@drawable/card_bg"
+                    android:layout_marginTop="10dp"
+                    android:gravity="center_vertical">
+                    <LinearLayout
+                        android:layout_width="0dp"
+                        android:layout_height="wrap_content"
+                        android:orientation="vertical"
+                        android:layout_weight="1">
+                        <TextView
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:text="@string/label_note"
+                            android:textColor="@color/muted"
+                            android:textSize="13sp" />
+                        <TextView
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:id="@+id/tvDetailNote"
+                            android:text="@string/note_none"
+                            android:textColor="@color/muted"
+                            android:textSize="15sp" />
+                    </LinearLayout>
+                    <Button
+                        android:id="@+id/btnDetailNote"
+                        android:layout_width="wrap_content"
+                        android:layout_height="48dp"
+                        android:background="@drawable/btn_neutral"
+                        android:text="@string/note_button"
+                        android:textAllCaps="false"
+                        android:textColor="@color/text" />
+                </LinearLayout>
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="22dp"
+                    android:text="@string/heading_work_blocks"
+                    android:textColor="@color/text"
+                    android:textSize="18sp"
+                    android:textStyle="bold" />
+                <LinearLayout
+                    android:id="@+id/detailWorkEntriesContainer"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="vertical"
+                    android:layout_marginTop="8dp">
+</LinearLayout>
+                <Button
+                    android:id="@+id/btnDetailAddWork"
+                    android:layout_width="match_parent"
+                    android:layout_height="50dp"
+                    android:layout_marginTop="8dp"
+                    android:background="@drawable/btn_neutral"
+                    android:text="@string/add_work"
+                    android:textAllCaps="false"
+                    android:textColor="@color/text" />
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="22dp"
+                    android:text="@string/heading_breaks"
+                    android:textColor="@color/text"
+                    android:textSize="18sp"
+                    android:textStyle="bold" />
+                <TextView
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="3dp"
+                    android:text="@string/hint_breaks"
+                    android:textColor="@color/muted"
+                    android:textSize="13sp" />
+                <LinearLayout
+                    android:id="@+id/detailBreakEntriesContainer"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="vertical"
+                    android:layout_marginTop="8dp">
+</LinearLayout>
+                <Button
+                    android:id="@+id/btnDetailAddBreak"
+                    android:layout_width="match_parent"
+                    android:layout_height="50dp"
+                    android:layout_marginTop="8dp"
+                    android:background="@drawable/btn_neutral"
+                    android:text="@string/add_break"
+                    android:textAllCaps="false"
+                    android:textColor="@color/text" />
+            </LinearLayout>
+            <TextView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="20dp"
+                android:text="@string/footer"
+                android:textColor="@color/muted"
+                android:textSize="12sp"
+                android:gravity="center" />
+        </LinearLayout>
+    </ScrollView>
+    <LinearLayout
+        android:id="@+id/undoBar"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal"
+        android:layout_gravity="bottom"
+        android:layout_margin="16dp"
+        android:background="@drawable/undo_bg"
+        android:elevation="6dp"
+        android:gravity="center_vertical"
+        android:paddingLeft="16dp"
+        android:paddingRight="8dp"
+        android:paddingTop="4dp"
+        android:paddingBottom="4dp"
+        android:visibility="gone">
+        <TextView
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:id="@+id/tvUndoText"
+            android:textColor="@color/on_dark"
+            android:textSize="14sp"
+            android:layout_weight="1" />
+        <Button
+            android:id="@+id/btnUndo"
+            android:layout_width="wrap_content"
+            android:layout_height="44dp"
+            android:background="@android:color/transparent"
+            android:text="@string/undo"
+            android:textAllCaps="false"
+            android:textColor="@color/undo_action"
+            android:textStyle="bold" />
+    </LinearLayout>
+</FrameLayout>

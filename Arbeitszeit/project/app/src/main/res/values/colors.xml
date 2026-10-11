@@ -1,0 +1,27 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <color name="bg">#F4F6F8</color>
+    <color name="card">#FFFFFFFF</color>
+    <color name="text">#1D2329</color>
+    <color name="muted">#66727D</color>
+    <color name="accent">#1565C0</color>
+    <color name="accent_dark">#0D47A1</color>
+    <color name="accent_soft">#E8F1FC</color>
+    <color name="on_accent">#FFFFFF</color>
+    <color name="green">#2E7D32</color>
+    <color name="green_soft">#E8F5E9</color>
+    <color name="orange">#EF6C00</color>
+    <color name="orange_soft">#FFF3E0</color>
+    <color name="red">#C62828</color>
+    <color name="line">#DDE3E8</color>
+
+    <color name="btn_neutral_bg">#E8EEF5</color>
+    <color name="btn_neutral_stroke">#C8D5E2</color>
+    <color name="btn_neutral_disabled">#E2E6EA</color>
+    <color name="btn_primary_disabled">#B9C2CA</color>
+    <color name="btn_stop_disabled">#E4C6C6</color>
+
+    <color name="undo_bg">#323232</color>
+    <color name="on_dark">#FFFFFF</color>
+    <color name="undo_action">#90CAF9</color>
+</resources>
