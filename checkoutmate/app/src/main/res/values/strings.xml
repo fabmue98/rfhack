@@ -1,0 +1,175 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">CheckoutMate</string>
+
+    <!-- Navigation / sections -->
+    <string name="nav_play">Play</string>
+    <string name="nav_training">Training</string>
+    <string name="nav_stats">Stats</string>
+    <string name="nav_history">History</string>
+    <string name="nav_settings">Settings</string>
+    <string name="nav_store">Unlock</string>
+
+    <!-- Common -->
+    <string name="common_ok">OK</string>
+    <string name="common_cancel">Cancel</string>
+    <string name="common_delete">Delete</string>
+    <string name="common_close">Close</string>
+    <string name="common_back">Back</string>
+    <string name="common_unlock">Unlock</string>
+    <string name="common_player">Player</string>
+    <string name="common_free">Free</string>
+    <string name="common_owned">Owned</string>
+
+    <!-- Setup -->
+    <string name="setup_title">New match</string>
+    <string name="setup_players">Players</string>
+    <string name="setup_player_hint">Player name</string>
+    <string name="setup_add_player">Add player</string>
+    <string name="setup_remove">Remove</string>
+    <string name="setup_game_type">Game</string>
+    <string name="setup_format">Match format</string>
+    <string name="setup_first_to">First to</string>
+    <string name="setup_legs">legs</string>
+    <string name="setup_sets">sets</string>
+    <string name="setup_use_sets">Play sets</string>
+    <string name="setup_double_in">Double in</string>
+    <string name="setup_double_out">Double out</string>
+    <string name="setup_start_match">Start match</string>
+    <string name="setup_need_two_players">Add at least one player</string>
+    <string name="setup_entry_mode">Score entry</string>
+    <string name="setup_entry_board">Dartboard (per dart)</string>
+    <string name="setup_entry_keypad">Keypad (per dart)</string>
+
+    <!-- Match -->
+    <string name="match_leg_set">Leg %1$d · Set %2$d</string>
+    <string name="match_leg_only">Leg %1$d</string>
+    <string name="match_avg">Avg</string>
+    <string name="match_darts">Darts</string>
+    <string name="match_to_throw">to throw</string>
+    <string name="match_undo">Undo</string>
+    <string name="match_this_visit">This visit</string>
+    <string name="match_requires_double">needs a double to start</string>
+    <string name="match_bust">Bust!</string>
+    <string name="match_game_shot">Game shot!</string>
+    <string name="match_leg_won">%1$s wins the leg</string>
+    <string name="match_set_won">%1$s wins the set</string>
+    <string name="match_match_won">%1$s wins the match!</string>
+    <string name="match_next_leg">Next leg</string>
+    <string name="match_rematch">Rematch</string>
+    <string name="match_exit">Exit match</string>
+    <string name="match_exit_confirm">Leave this match? Progress is saved.</string>
+    <string name="match_board">Board</string>
+    <string name="match_keypad">Keypad</string>
+    <string name="match_miss">Miss</string>
+    <string name="match_single">S</string>
+    <string name="match_double">D</string>
+    <string name="match_triple">T</string>
+    <string name="match_enter">Enter</string>
+    <string name="match_clear">Clear</string>
+    <string name="match_quick_scores">Quick scores</string>
+    <string name="match_resume">Resume match</string>
+    <string name="match_discard">Discard</string>
+
+    <!-- Checkout feature -->
+    <string name="checkout_label">Checkout</string>
+    <string name="checkout_no_finish">No finish</string>
+    <string name="checkout_locked_title">Checkout suggestions</string>
+    <string name="checkout_locked_msg">Unlock automatic optimal finishes for every score up to 170, with your preferred double.</string>
+    <string name="checkout_unlock_cta">Unlock checkout engine</string>
+
+    <!-- Store -->
+    <string name="store_title">Unlock features</string>
+    <string name="store_subtitle">Pay once. No ads, no subscription, no account.</string>
+    <string name="store_restore">Restore purchases</string>
+    <string name="store_buy">Buy</string>
+    <string name="store_unavailable">Store unavailable. Open from Google Play to purchase.</string>
+    <string name="store_thanks">Thanks for your support!</string>
+    <string name="store_restored">Purchases restored.</string>
+    <string name="store_best_value">Best value</string>
+    <string name="store_pack_checkout_title">Checkout Engine</string>
+    <string name="store_pack_checkout_desc">Optimal finish paths for any score ≤170, preferred-double setting and bogey-number warnings.</string>
+    <string name="store_pack_training_title">Training Games</string>
+    <string name="store_pack_training_desc">Cricket, Bob\'s 27, Around the Clock, Shanghai and a doubles drill — each fully scored.</string>
+    <string name="store_pack_stats_title">Stats &amp; History</string>
+    <string name="store_pack_stats_desc">Match history, 3-dart average over time, checkout %, 180s and CSV export.</string>
+    <string name="store_pro_title">CheckoutMate Pro</string>
+    <string name="store_pro_desc">All three packs, the voice caller and extra scoreboard themes (including AMOLED black).</string>
+
+    <!-- Training -->
+    <string name="training_title">Training games</string>
+    <string name="training_locked_msg">Unlock the Training Games pack to practise Cricket, Bob\'s 27, Around the Clock, Shanghai and doubles.</string>
+    <string name="game_cricket">Cricket</string>
+    <string name="game_cricket_desc">Close 20–15 and the bull, score on your open numbers.</string>
+    <string name="game_bobs27">Bob\'s 27</string>
+    <string name="game_bobs27_desc">Doubles from D1 to bull; hit to gain, miss to lose.</string>
+    <string name="game_atc">Around the Clock</string>
+    <string name="game_atc_desc">Hit 1 through 20 then the bull, as fast as you can.</string>
+    <string name="game_shanghai">Shanghai</string>
+    <string name="game_shanghai_desc">Seven rounds, 1–7; single, double and triple of the round\'s number.</string>
+    <string name="game_doubles">Doubles drill</string>
+    <string name="game_doubles_desc">Work through every double and track your hit rate.</string>
+    <string name="game_score">Score</string>
+    <string name="game_round">Round</string>
+    <string name="game_target">Target</string>
+    <string name="game_hit">Hit</string>
+    <string name="game_miss">Miss</string>
+    <string name="game_restart">Restart</string>
+    <string name="game_finished">Finished</string>
+    <string name="game_best">Best</string>
+    <string name="game_marks">Marks</string>
+
+    <!-- Stats -->
+    <string name="stats_title">Statistics</string>
+    <string name="stats_locked_msg">Unlock Stats &amp; History to track your average, checkout %, 180s and more over time.</string>
+    <string name="stats_avg">3-dart average</string>
+    <string name="stats_checkout_pct">Checkout %</string>
+    <string name="stats_first9">First-9 average</string>
+    <string name="stats_count180">180s</string>
+    <string name="stats_best_leg">Best leg (darts)</string>
+    <string name="stats_matches">Matches</string>
+    <string name="stats_legs_won">Legs won</string>
+    <string name="stats_highest_finish">Highest finish</string>
+    <string name="stats_no_data">Play a match to see your stats here.</string>
+    <string name="stats_export_csv">Export CSV</string>
+    <string name="stats_avg_over_time">Average over time</string>
+    <string name="stats_player_filter">Player</string>
+    <string name="stats_all_players">All players</string>
+
+    <!-- History -->
+    <string name="history_title">Match history</string>
+    <string name="history_locked_msg">Unlock Stats &amp; History to keep a full record of your matches.</string>
+    <string name="history_empty">No matches yet.</string>
+    <string name="history_vs">vs</string>
+    <string name="history_delete_confirm">Delete this match from your history?</string>
+
+    <!-- Settings -->
+    <string name="settings_title">Settings</string>
+    <string name="settings_language">Language</string>
+    <string name="settings_language_system">System default</string>
+    <string name="settings_language_en">English</string>
+    <string name="settings_language_de">Deutsch</string>
+    <string name="settings_pref_double">Preferred double</string>
+    <string name="settings_pref_double_none">Shortest path</string>
+    <string name="settings_default_double_out">Default: double out</string>
+    <string name="settings_default_double_in">Default: double in</string>
+    <string name="settings_theme">Scoreboard theme</string>
+    <string name="settings_theme_dark">Dark green (default)</string>
+    <string name="settings_theme_amoled">AMOLED black (Pro)</string>
+    <string name="settings_theme_felt">Classic felt (Pro)</string>
+    <string name="settings_voice">Voice caller (Pro)</string>
+    <string name="settings_haptics">Haptic feedback</string>
+    <string name="settings_keep_screen_on">Keep screen on during a match</string>
+    <string name="settings_scoreboard_mode">Wall-mount scoreboard mode</string>
+    <string name="settings_about">About</string>
+    <string name="settings_about_text">CheckoutMate — a fast, offline darts scorer and checkout trainer. No account, no ads.</string>
+    <string name="settings_dev_unlock">Developer: unlock all features (test build)</string>
+    <string name="settings_restart_hint">Language applies after the screen reloads.</string>
+
+    <!-- Voice phrases (spoken by the TTS caller) -->
+    <string name="voice_game_shot">Game shot and the match, %1$s</string>
+    <string name="voice_leg_shot">Game shot, %1$s</string>
+    <string name="voice_you_require">You require %1$d</string>
+    <string name="voice_scored">%1$d</string>
+    <string name="voice_bust">No score</string>
+</resources>

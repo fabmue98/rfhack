@@ -1,0 +1,175 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">CheckoutMate</string>
+
+    <!-- Navigation / sections -->
+    <string name="nav_play">Spielen</string>
+    <string name="nav_training">Training</string>
+    <string name="nav_stats">Statistik</string>
+    <string name="nav_history">Verlauf</string>
+    <string name="nav_settings">Einstellungen</string>
+    <string name="nav_store">Freischalten</string>
+
+    <!-- Common -->
+    <string name="common_ok">OK</string>
+    <string name="common_cancel">Abbrechen</string>
+    <string name="common_delete">Löschen</string>
+    <string name="common_close">Schließen</string>
+    <string name="common_back">Zurück</string>
+    <string name="common_unlock">Freischalten</string>
+    <string name="common_player">Spieler</string>
+    <string name="common_free">Gratis</string>
+    <string name="common_owned">Freigeschaltet</string>
+
+    <!-- Setup -->
+    <string name="setup_title">Neues Spiel</string>
+    <string name="setup_players">Spieler</string>
+    <string name="setup_player_hint">Spielername</string>
+    <string name="setup_add_player">Spieler hinzufügen</string>
+    <string name="setup_remove">Entfernen</string>
+    <string name="setup_game_type">Spielmodus</string>
+    <string name="setup_format">Spielformat</string>
+    <string name="setup_first_to">Erster auf</string>
+    <string name="setup_legs">Legs</string>
+    <string name="setup_sets">Sets</string>
+    <string name="setup_use_sets">Mit Sets spielen</string>
+    <string name="setup_double_in">Double-In</string>
+    <string name="setup_double_out">Double-Out</string>
+    <string name="setup_start_match">Spiel starten</string>
+    <string name="setup_need_two_players">Mindestens einen Spieler hinzufügen</string>
+    <string name="setup_entry_mode">Eingabe</string>
+    <string name="setup_entry_board">Dartscheibe (pro Dart)</string>
+    <string name="setup_entry_keypad">Tastenfeld (pro Dart)</string>
+
+    <!-- Match -->
+    <string name="match_leg_set">Leg %1$d · Set %2$d</string>
+    <string name="match_leg_only">Leg %1$d</string>
+    <string name="match_avg">Schnitt</string>
+    <string name="match_darts">Darts</string>
+    <string name="match_to_throw">ist dran</string>
+    <string name="match_undo">Zurück</string>
+    <string name="match_this_visit">Diese Aufnahme</string>
+    <string name="match_requires_double">muss mit Doppel eröffnen</string>
+    <string name="match_bust">Überworfen!</string>
+    <string name="match_game_shot">Game Shot!</string>
+    <string name="match_leg_won">%1$s gewinnt das Leg</string>
+    <string name="match_set_won">%1$s gewinnt das Set</string>
+    <string name="match_match_won">%1$s gewinnt das Spiel!</string>
+    <string name="match_next_leg">Nächstes Leg</string>
+    <string name="match_rematch">Revanche</string>
+    <string name="match_exit">Spiel beenden</string>
+    <string name="match_exit_confirm">Spiel verlassen? Der Stand wird gespeichert.</string>
+    <string name="match_board">Scheibe</string>
+    <string name="match_keypad">Tasten</string>
+    <string name="match_miss">Daneben</string>
+    <string name="match_single">S</string>
+    <string name="match_double">D</string>
+    <string name="match_triple">T</string>
+    <string name="match_enter">Eingeben</string>
+    <string name="match_clear">Leeren</string>
+    <string name="match_quick_scores">Schnellwerte</string>
+    <string name="match_resume">Spiel fortsetzen</string>
+    <string name="match_discard">Verwerfen</string>
+
+    <!-- Checkout feature -->
+    <string name="checkout_label">Checkout</string>
+    <string name="checkout_no_finish">Kein Finish</string>
+    <string name="checkout_locked_title">Checkout-Vorschläge</string>
+    <string name="checkout_locked_msg">Schalte automatische optimale Finishes für jeden Rest bis 170 frei — mit deinem Lieblings-Doppel.</string>
+    <string name="checkout_unlock_cta">Checkout-Engine freischalten</string>
+
+    <!-- Store -->
+    <string name="store_title">Funktionen freischalten</string>
+    <string name="store_subtitle">Einmal zahlen. Keine Werbung, kein Abo, kein Account.</string>
+    <string name="store_restore">Käufe wiederherstellen</string>
+    <string name="store_buy">Kaufen</string>
+    <string name="store_unavailable">Shop nicht verfügbar. Zum Kaufen über Google Play öffnen.</string>
+    <string name="store_thanks">Danke für deine Unterstützung!</string>
+    <string name="store_restored">Käufe wiederhergestellt.</string>
+    <string name="store_best_value">Bestes Angebot</string>
+    <string name="store_pack_checkout_title">Checkout-Engine</string>
+    <string name="store_pack_checkout_desc">Optimale Finish-Wege für jeden Rest ≤170, Lieblings-Doppel und Bogey-Warnungen.</string>
+    <string name="store_pack_training_title">Trainingsspiele</string>
+    <string name="store_pack_training_desc">Cricket, Bob\'s 27, Around the Clock, Shanghai und ein Doppel-Drill — alle voll gewertet.</string>
+    <string name="store_pack_stats_title">Statistik &amp; Verlauf</string>
+    <string name="store_pack_stats_desc">Spielverlauf, 3-Dart-Schnitt über Zeit, Checkout-%, 180er und CSV-Export.</string>
+    <string name="store_pro_title">CheckoutMate Pro</string>
+    <string name="store_pro_desc">Alle drei Pakete, die Sprachansage und zusätzliche Scoreboard-Themes (inkl. AMOLED-Schwarz).</string>
+
+    <!-- Training -->
+    <string name="training_title">Trainingsspiele</string>
+    <string name="training_locked_msg">Schalte das Trainingspaket frei für Cricket, Bob\'s 27, Around the Clock, Shanghai und Doppel.</string>
+    <string name="game_cricket">Cricket</string>
+    <string name="game_cricket_desc">Schließe 20–15 und das Bull, punkte auf deinen offenen Zahlen.</string>
+    <string name="game_bobs27">Bob\'s 27</string>
+    <string name="game_bobs27_desc">Doppel von D1 bis Bull; Treffer bringt Punkte, Fehlwurf kostet.</string>
+    <string name="game_atc">Around the Clock</string>
+    <string name="game_atc_desc">Triff 1 bis 20 und dann das Bull, so schnell du kannst.</string>
+    <string name="game_shanghai">Shanghai</string>
+    <string name="game_shanghai_desc">Sieben Runden, 1–7; Single, Double und Triple der Rundenzahl.</string>
+    <string name="game_doubles">Doppel-Drill</string>
+    <string name="game_doubles_desc">Arbeite jedes Doppel durch und verfolge deine Trefferquote.</string>
+    <string name="game_score">Punkte</string>
+    <string name="game_round">Runde</string>
+    <string name="game_target">Ziel</string>
+    <string name="game_hit">Treffer</string>
+    <string name="game_miss">Daneben</string>
+    <string name="game_restart">Neu starten</string>
+    <string name="game_finished">Beendet</string>
+    <string name="game_best">Bestwert</string>
+    <string name="game_marks">Marks</string>
+
+    <!-- Stats -->
+    <string name="stats_title">Statistik</string>
+    <string name="stats_locked_msg">Schalte Statistik &amp; Verlauf frei, um Schnitt, Checkout-%, 180er und mehr über Zeit zu verfolgen.</string>
+    <string name="stats_avg">3-Dart-Schnitt</string>
+    <string name="stats_checkout_pct">Checkout-%</string>
+    <string name="stats_first9">First-9-Schnitt</string>
+    <string name="stats_count180">180er</string>
+    <string name="stats_best_leg">Bestes Leg (Darts)</string>
+    <string name="stats_matches">Spiele</string>
+    <string name="stats_legs_won">Gewonnene Legs</string>
+    <string name="stats_highest_finish">Höchstes Finish</string>
+    <string name="stats_no_data">Spiele ein Match, um hier deine Statistik zu sehen.</string>
+    <string name="stats_export_csv">CSV exportieren</string>
+    <string name="stats_avg_over_time">Schnitt über Zeit</string>
+    <string name="stats_player_filter">Spieler</string>
+    <string name="stats_all_players">Alle Spieler</string>
+
+    <!-- History -->
+    <string name="history_title">Spielverlauf</string>
+    <string name="history_locked_msg">Schalte Statistik &amp; Verlauf frei, um alle deine Spiele zu speichern.</string>
+    <string name="history_empty">Noch keine Spiele.</string>
+    <string name="history_vs">gegen</string>
+    <string name="history_delete_confirm">Dieses Spiel aus dem Verlauf löschen?</string>
+
+    <!-- Settings -->
+    <string name="settings_title">Einstellungen</string>
+    <string name="settings_language">Sprache</string>
+    <string name="settings_language_system">Systemstandard</string>
+    <string name="settings_language_en">English</string>
+    <string name="settings_language_de">Deutsch</string>
+    <string name="settings_pref_double">Lieblings-Doppel</string>
+    <string name="settings_pref_double_none">Kürzester Weg</string>
+    <string name="settings_default_double_out">Standard: Double-Out</string>
+    <string name="settings_default_double_in">Standard: Double-In</string>
+    <string name="settings_theme">Scoreboard-Theme</string>
+    <string name="settings_theme_dark">Dunkelgrün (Standard)</string>
+    <string name="settings_theme_amoled">AMOLED-Schwarz (Pro)</string>
+    <string name="settings_theme_felt">Klassischer Filz (Pro)</string>
+    <string name="settings_voice">Sprachansage (Pro)</string>
+    <string name="settings_haptics">Haptisches Feedback</string>
+    <string name="settings_keep_screen_on">Bildschirm im Spiel anlassen</string>
+    <string name="settings_scoreboard_mode">Wandmontage-Scoreboard</string>
+    <string name="settings_about">Über</string>
+    <string name="settings_about_text">CheckoutMate — ein schneller, offline Darts-Scorer und Checkout-Trainer. Kein Account, keine Werbung.</string>
+    <string name="settings_dev_unlock">Entwickler: alle Funktionen freischalten (Testbuild)</string>
+    <string name="settings_restart_hint">Die Sprache wird nach dem Neuladen übernommen.</string>
+
+    <!-- Voice phrases -->
+    <string name="voice_game_shot">Game Shot and the Match, %1$s</string>
+    <string name="voice_leg_shot">Game Shot, %1$s</string>
+    <string name="voice_you_require">Du brauchst %1$d</string>
+    <string name="voice_scored">%1$d</string>
+    <string name="voice_bust">Kein Score</string>
+</resources>
