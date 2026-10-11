@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Speedometer arc with needle. -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp" android:height="108dp"
+    android:viewportWidth="108" android:viewportHeight="108">
+    <path android:strokeColor="#FF22C55E" android:strokeWidth="6" android:strokeLineCap="round"
+        android:fillColor="#00000000"
+        android:pathData="M32,68 A24,24 0 1,1 76,68" />
+    <path android:strokeColor="#FFE5E7EB" android:strokeWidth="5" android:strokeLineCap="round"
+        android:fillColor="#00000000"
+        android:pathData="M54,58 L68,42" />
+    <path android:fillColor="#FFE5E7EB" android:pathData="M54,58m-5,0a5,5 0 1,0 10,0a5,5 0 1,0 -10,0" />
+</vector>
