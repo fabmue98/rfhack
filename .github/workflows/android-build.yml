@@ -33,6 +33,10 @@ jobs:
 
       - name: Set up Android SDK
         uses: android-actions/setup-android@v3
+        with:
+          # Default packages include the legacy "tools" package, which no longer
+          # exists and makes sdkmanager fail. Install only what the build needs.
+          packages: "platform-tools platforms;android-35 build-tools;35.0.0"
 
       - name: Set up Gradle
         uses: gradle/actions/setup-gradle@v4
